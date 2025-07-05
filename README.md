@@ -45,9 +45,12 @@ In the gameplay, the player is at the bottom of the screen, and the asteroids ar
 The upper left corner of the screen displays the amount of health of the player. In the upper right corner is the current score.
 
 ## References
+
 ![](images\example1.png)
+
 ---
-![](images\exapmle2.png)
+
+![](images\example2.png)
 
 # Mechanics
 1. - [ ] Player movement
