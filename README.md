@@ -46,11 +46,9 @@ The upper left corner of the screen displays the amount of health of the player.
 
 ## References
 
-![](images\example1.png)
-
+![](images/example1.png)
 ---
-
-![](images\example2.png)
+![](images/example2.png)
 
 # Mechanics
 1. - [ ] Player movement
