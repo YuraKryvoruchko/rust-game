@@ -1,5 +1,10 @@
 use bevy::prelude::*;
 
+const PLAYER_SPAWN_HEIGHT: f32 = -400.0;
+
+const ASTEROID_SPAWN_HEIGHT: f32 = 500.0;
+const ASTEROID_SPAWN_DIAPASON: Vec2 = Vec2::new(-200.0, 200.0);
+
 #[derive(Component)]
 struct Direction {
     x: f32,
@@ -29,7 +34,7 @@ fn startup(mut commands: Commands, asset_server: Res<AssetServer>) {
 
     commands.spawn((
         Sprite::from_image(asset_server.load("playerShip1_blue.png")),
-        Transform::from_xyz(0.0, -400.0, 0.0),
+        Transform::from_xyz(0.0, PLAYER_SPAWN_HEIGHT, 0.0),
         Speed(150.0),
         Direction {x: 0.0, y: 0.0},
         PlayerComponent
@@ -61,7 +66,7 @@ fn spawn_asteroid(time: Res<Time>, mut timer: ResMut<AsteroidSpawTimer>, mut com
     if timer.0.tick(time.delta()).just_finished() {
         commands.spawn((
             Sprite::from_image(asset_server.load("meteorGrey_big3.png")),
-            Transform::from_xyz(rand::random_range(-200.0..=200.0), 0.0, 0.0),
+            Transform::from_xyz(rand::random_range(ASTEROID_SPAWN_DIAPASON.x..=ASTEROID_SPAWN_DIAPASON.y), ASTEROID_SPAWN_HEIGHT, 0.0),
             Speed(250.0),
             Direction {x: 0.0, y: -1.0}
         ));
