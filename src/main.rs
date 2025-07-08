@@ -1,11 +1,11 @@
-use bevy::prelude::*;
+use bevy::{math::bounding::{Aabb2d, BoundingCircle, IntersectsVolume}, prelude::*};
 
 const PLAYER_SPAWN_HEIGHT: f32 = -400.0;
 const PLAYER_MOVE_SPEED: f32 = 250.0;
 
 const LAZER_SPEED: f32 = 400.0;
 const LAZER_Y_OFFSET: f32 = 40.0;
-const LAZER_LAYER: f32 = -1.0;
+const LAZER_LAYER: f32 = 0.0;
 
 const ASTEROID_MOVE_SPEED: f32 = 250.0;
 const ASTEROID_SPAWN_HEIGHT: f32 = 500.0;
@@ -19,8 +19,12 @@ struct Direction {
 
 #[derive(Component)]
 struct Player;
+
 #[derive(Component)]
 struct Lazer;
+
+#[derive(Component)]
+struct Asteroid;
 
 #[derive(Component)]
 struct Speed(f32);
@@ -36,7 +40,7 @@ fn main() {
         .insert_resource(AsteroidSpawTimer(Timer::from_seconds(2.0, TimerMode::Repeating)))
         .insert_resource(LazerShootingTimer(Timer::from_seconds(0.5, TimerMode::Once)))
         .add_systems(Startup, startup)
-        .add_systems(Update, (handle_input, lazer_shooting, spawn_asteroid, move_objects).chain())
+        .add_systems(Update, (handle_input, lazer_shooting, spawn_asteroid, move_objects, check_lazer_collision).chain())
         .run();
 }
 
@@ -86,7 +90,8 @@ fn lazer_shooting(time: Res<Time>, mut timer: ResMut<LazerShootingTimer>, input:
                 Sprite::from_image(asset_server.load("laserBlue03.png")),
                 Transform::from_xyz(player_transform.translation.x, player_transform.translation.y + LAZER_Y_OFFSET, LAZER_LAYER),
                 Speed(LAZER_SPEED),
-                Direction {x: 0.0, y: 1.0}
+                Direction {x: 0.0, y: 1.0},
+                Lazer
             ));
         }
         timer.0.reset();
@@ -99,7 +104,31 @@ fn spawn_asteroid(time: Res<Time>, mut timer: ResMut<AsteroidSpawTimer>, mut com
             Sprite::from_image(asset_server.load("meteorGrey_big3.png")),
             Transform::from_xyz(rand::random_range(ASTEROID_SPAWN_DIAPASON.x..=ASTEROID_SPAWN_DIAPASON.y), ASTEROID_SPAWN_HEIGHT, 0.0),
             Speed(ASTEROID_MOVE_SPEED),
-            Direction {x: 0.0, y: -1.0}
+            Direction {x: 0.0, y: -1.0},
+            Asteroid
         ));
+    }
+}
+
+fn check_lazer_collision (
+    mut lazers: Query<(Entity, &Transform), (With<Lazer>, Without<Asteroid>)>, 
+    mut asteroids: Query<(Entity, &Transform), (With<Asteroid>, Without<Lazer>)>, 
+    mut commands: Commands
+) {
+    for (lazer_entity, lazer) in &mut lazers {
+        if lazer.translation.y > ASTEROID_SPAWN_HEIGHT {
+            commands.entity(lazer_entity).despawn();
+            return;
+        }
+
+        for (asteroid_entity, astreroid) in &mut asteroids {
+            let asteroid_collider =  BoundingCircle::new(astreroid.translation.truncate(), 82.0 / 2.0);
+            let lazer_collider = Aabb2d::new(lazer.translation.truncate(), lazer.scale.truncate() / 2.0);
+
+            if lazer_collider.intersects(&asteroid_collider) {
+                commands.entity(lazer_entity).despawn();
+                commands.entity(asteroid_entity).despawn();
+            }
+        }
     }
 }
