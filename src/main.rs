@@ -7,7 +7,7 @@ const PLAYER_WINGS_SIZE: Vec2 = Vec2::new(99.0, 35.0);
 
 const LAZER_SPEED: f32 = 400.0;
 const LAZER_Y_OFFSET: f32 = 40.0;
-const LAZER_LAYER: f32 = 0.0;
+const LAZER_LAYER: f32 = -1.0;
 
 const ASTEROID_MOVE_SPEED: f32 = 250.0;
 const ASTEROID_SPAWN_HEIGHT: f32 = 500.0;
@@ -157,10 +157,13 @@ fn check_lazer_collision(
 }
 
 fn check_player_collision(
-    player: Single< &Transform, With<Player>>,
-    asteroids: Query<(Entity, &Transform), With<Asteroid>>,
+    mut player: Single<&mut Transform, (With<Player>, Without<Asteroid>)>,
+    asteroids: Query<(Entity, &Transform), (With<Asteroid>, Without<Player>)>,
     mut commands: Commands
-) {
+) { 
+    if player.translation.x < ASTEROID_SPAWN_DIAPASON.x { player.translation.x = ASTEROID_SPAWN_DIAPASON.x }
+    else if player.translation.x > ASTEROID_SPAWN_DIAPASON.y { player.translation.x = ASTEROID_SPAWN_DIAPASON.y }
+
     let player_center = player.translation.truncate();
     let body_collider = Aabb2d::new(player_center, PLAYER_BODY_SIZE / 2.0);
     let wing_collider = Aabb2d::new(player_center, PLAYER_WINGS_SIZE / 2.0);
