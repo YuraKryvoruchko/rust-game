@@ -51,9 +51,9 @@ The upper left corner of the screen displays the amount of health of the player.
 
 # 4. Mechanics
 1. - [x] Player movement
-2. - [ ] Asteroid movement
-3. - [ ] Asteroid spawning
-4. - [ ] Shooting
+2. - [x] Asteroid movement
+3. - [x] Asteroid spawning
+4. - [x] Shooting
 5. - [ ] Collision
 6. - [ ] Health system
 7. - [ ] Score counting

@@ -10,7 +10,7 @@ const LAZER_Y_OFFSET: f32 = 40.0;
 const LAZER_LAYER: f32 = -1.0;
 
 const ASTEROID_MOVE_SPEED: f32 = 250.0;
-const ASTEROID_SPAWN_HEIGHT: f32 = 500.0;
+const ASTEROID_SPAWN_HEIGHT: f32 = 550.0;
 const ASTEROID_SPAWN_DIAPASON: Vec2 = Vec2::new(-200.0, 200.0);
 const ASTEROID_DIAMETER: f32 = 82.0;
 
@@ -34,15 +34,22 @@ struct Speed(f32);
 
 #[derive(Resource)]
 struct AsteroidSpawTimer(Timer);
+
 #[derive(Resource)]
 struct LazerShootingTimer(Timer);
+
+#[derive(Resource, Deref)]
+struct LazerShootingSound(Handle<AudioSource>);
+
+#[derive(Resource, Deref)]
+struct DamageSound(Handle<AudioSource>);
 
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .insert_resource(AsteroidSpawTimer(Timer::from_seconds(2.0, TimerMode::Repeating)))
         .insert_resource(LazerShootingTimer(Timer::from_seconds(0.5, TimerMode::Once)))
-        .add_systems(Startup, startup)
+        .add_systems(Startup, (startup, load_audio))
         .add_systems(Update, (handle_input, lazer_shooting, spawn_asteroid, move_objects, check_lazer_collision, check_player_collision).chain())
         .run();
 }
@@ -53,13 +60,27 @@ fn startup(
 ) {
     commands.spawn(Camera2d);
 
+    let lazer_shooting_sound = asset_server.load("audio/sfx_laser1.ogg");
+    commands.insert_resource(LazerShootingSound(lazer_shooting_sound));
+
     commands.spawn((
-        Sprite::from_image(asset_server.load("playerShip1_blue.png")),
+        Sprite::from_image(asset_server.load("sprites/playerShip1_blue.png")),
         Transform::from_xyz(0.0, PLAYER_SPAWN_HEIGHT, 0.0),
         Speed(PLAYER_MOVE_SPEED),
         Direction {x: 0.0, y: 0.0},
         Player
     ));
+}
+
+fn load_audio(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>
+) {
+    let lazer_shooting_sound = asset_server.load("audio/sfx_laser1.ogg");
+    commands.insert_resource(LazerShootingSound(lazer_shooting_sound));
+
+    let damage_sound = asset_server.load("audio/sfx_lose.ogg");
+    commands.insert_resource(DamageSound(damage_sound));
 }
 
 fn handle_input(
@@ -94,6 +115,7 @@ fn lazer_shooting(
     mut timer: ResMut<LazerShootingTimer>, 
     input: Res<ButtonInput<KeyCode>>, 
     player: Query<&Transform, With<Player>>, 
+    sound: Res<LazerShootingSound>,
     asset_server: Res<AssetServer>, 
     mut commands: Commands 
 ) {
@@ -105,12 +127,13 @@ fn lazer_shooting(
     if input.just_pressed(KeyCode::Space) {
         for player_transform in &player {
             commands.spawn((
-                Sprite::from_image(asset_server.load("laserBlue03.png")),
+                Sprite::from_image(asset_server.load("sprites/laserBlue03.png")),
                 Transform::from_xyz(player_transform.translation.x, player_transform.translation.y + LAZER_Y_OFFSET, LAZER_LAYER),
                 Speed(LAZER_SPEED),
                 Direction {x: 0.0, y: 1.0},
                 Lazer
             ));
+            commands.spawn((AudioPlayer(sound.clone()), PlaybackSettings::DESPAWN));
         }
         timer.0.reset();
     }
@@ -124,7 +147,7 @@ fn spawn_asteroid(
 ) {
     if timer.0.tick(time.delta()).just_finished() {
         commands.spawn((
-            Sprite::from_image(asset_server.load("meteorGrey_big3.png")),
+            Sprite::from_image(asset_server.load("sprites/meteorGrey_big3.png")),
             Transform::from_xyz(rand::random_range(ASTEROID_SPAWN_DIAPASON.x..=ASTEROID_SPAWN_DIAPASON.y), ASTEROID_SPAWN_HEIGHT, 0.0),
             Speed(ASTEROID_MOVE_SPEED),
             Direction {x: 0.0, y: -1.0},
@@ -159,6 +182,7 @@ fn check_lazer_collision(
 fn check_player_collision(
     mut player: Single<&mut Transform, (With<Player>, Without<Asteroid>)>,
     asteroids: Query<(Entity, &Transform), (With<Asteroid>, Without<Player>)>,
+    sound: Res<DamageSound>, 
     mut commands: Commands
 ) { 
     if player.translation.x < ASTEROID_SPAWN_DIAPASON.x { player.translation.x = ASTEROID_SPAWN_DIAPASON.x }
@@ -172,6 +196,7 @@ fn check_player_collision(
         let asteroid_collider = BoundingCircle::new(asteroid_transform.translation.truncate(), ASTEROID_DIAMETER / 2.0);
         if body_collider.intersects(&asteroid_collider) || wing_collider.intersects(&asteroid_collider) {
             commands.entity(asteroid_entity).despawn();
+            commands.spawn((AudioPlayer(sound.clone()), PlaybackSettings::DESPAWN));
         }
     }
 }
