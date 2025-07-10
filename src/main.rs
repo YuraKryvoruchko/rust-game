@@ -32,6 +32,9 @@ struct Asteroid;
 #[derive(Component)]
 struct Speed(f32);
 
+#[derive(Component)]
+struct Health(i32);
+
 #[derive(Resource)]
 struct AsteroidSpawTimer(Timer);
 
@@ -44,13 +47,26 @@ struct LazerShootingSound(Handle<AudioSource>);
 #[derive(Resource, Deref)]
 struct DamageSound(Handle<AudioSource>);
 
+#[derive(Event)]
+struct AsteroidCollisionEvent(Entity);
+
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .insert_resource(AsteroidSpawTimer(Timer::from_seconds(2.0, TimerMode::Repeating)))
         .insert_resource(LazerShootingTimer(Timer::from_seconds(0.5, TimerMode::Once)))
+        .add_event::<AsteroidCollisionEvent>()
         .add_systems(Startup, (startup, load_audio))
-        .add_systems(Update, (handle_input, lazer_shooting, spawn_asteroid, move_objects, check_lazer_collision, check_player_collision).chain())
+        .add_systems(Update, (
+            handle_input, 
+            lazer_shooting, 
+            spawn_asteroid, 
+            move_objects, 
+            check_lazer_collision, 
+            check_player_collision, 
+            destroy_asteroids,
+            check_botton_wall_collsion
+        ).chain())
         .run();
 }
 
@@ -68,6 +84,7 @@ fn startup(
         Transform::from_xyz(0.0, PLAYER_SPAWN_HEIGHT, 0.0),
         Speed(PLAYER_MOVE_SPEED),
         Direction {x: 0.0, y: 0.0},
+        Health(3),
         Player
     ));
 }
@@ -158,7 +175,8 @@ fn spawn_asteroid(
 
 fn check_lazer_collision(
     lazers: Query<(Entity, &Transform), (With<Lazer>, Without<Asteroid>)>, 
-    asteroids: Query<(Entity, &Transform), (With<Asteroid>, Without<Lazer>)>, 
+    asteroids: Query<(Entity, &Transform), (With<Asteroid>, Without<Lazer>)>,
+    mut collision_events: EventWriter<AsteroidCollisionEvent>, 
     mut commands: Commands
 ) {
     for (lazer_entity, lazer) in &lazers {
@@ -173,29 +191,56 @@ fn check_lazer_collision(
 
             if lazer_collider.intersects(&asteroid_collider) {
                 commands.entity(lazer_entity).despawn();
-                commands.entity(asteroid_entity).despawn();
+                collision_events.write(AsteroidCollisionEvent(asteroid_entity));
             }
         }
     }
 }
 
+fn destroy_asteroids(
+    mut commands: Commands,
+    mut collision_events: EventReader<AsteroidCollisionEvent>
+) {
+    for event in collision_events.read() {
+        commands.entity(event.0).despawn();
+    }
+}
+
 fn check_player_collision(
-    mut player: Single<&mut Transform, (With<Player>, Without<Asteroid>)>,
+    mut player: Single<(&mut Transform, &mut Health), (With<Player>, Without<Asteroid>)>,
     asteroids: Query<(Entity, &Transform), (With<Asteroid>, Without<Player>)>,
     sound: Res<DamageSound>, 
     mut commands: Commands
 ) { 
-    if player.translation.x < ASTEROID_SPAWN_DIAPASON.x { player.translation.x = ASTEROID_SPAWN_DIAPASON.x }
-    else if player.translation.x > ASTEROID_SPAWN_DIAPASON.y { player.translation.x = ASTEROID_SPAWN_DIAPASON.y }
+    let (player_transform,  player_health) = &mut*player;
 
-    let player_center = player.translation.truncate();
+    if player_transform.translation.x < ASTEROID_SPAWN_DIAPASON.x { player_transform.translation.x = ASTEROID_SPAWN_DIAPASON.x }
+    else if player_transform.translation.x > ASTEROID_SPAWN_DIAPASON.y { player_transform.translation.x = ASTEROID_SPAWN_DIAPASON.y }
+
+    let player_center = player_transform.translation.truncate();
     let body_collider = Aabb2d::new(player_center, PLAYER_BODY_SIZE / 2.0);
     let wing_collider = Aabb2d::new(player_center, PLAYER_WINGS_SIZE / 2.0);
 
     for (asteroid_entity, asteroid_transform) in &asteroids {
         let asteroid_collider = BoundingCircle::new(asteroid_transform.translation.truncate(), ASTEROID_DIAMETER / 2.0);
         if body_collider.intersects(&asteroid_collider) || wing_collider.intersects(&asteroid_collider) {
+            player_health.0 -= 1;
+            println!("Player health: {}", player_health.0);
             commands.entity(asteroid_entity).despawn();
+            commands.spawn((AudioPlayer(sound.clone()), PlaybackSettings::DESPAWN));
+        }
+    }
+}
+
+fn check_botton_wall_collsion(
+    asteroids: Query<(Entity, &Transform), (With<Asteroid>, Without<Player>)>,
+    sound: Res<DamageSound>,
+    mut collision_events: EventWriter<AsteroidCollisionEvent>, 
+    mut commands: Commands,
+) {
+    for (entity, transform) in &asteroids {
+        if transform.translation.y < -550.0 {
+            collision_events.write(AsteroidCollisionEvent(entity));
             commands.spawn((AudioPlayer(sound.clone()), PlaybackSettings::DESPAWN));
         }
     }
