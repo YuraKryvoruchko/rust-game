@@ -1,3 +1,5 @@
+<h1>Table of Contents</h1>
+
 - [1. About](#1-about)
 - [2. Project goals](#2-project-goals)
 - [3. Style](#3-style)
@@ -56,7 +58,7 @@ The upper left corner of the screen displays the amount of health of the player.
 4. - [x] Shooting
 5. - [ ] Collision
 6. - [ ] Health system
-7. - [ ] Score counting
+7. - [x] Score counting
 8. - [ ] Saving of best result
 
 ## 4.1. Key binding
@@ -76,7 +78,7 @@ The upper left corner of the screen displays the amount of health of the player.
 | Damage of asteroid    |   1   |
 | Shooting rate         |  0.2  |
 | Asteroid spawn rate   |   3   |
-| Score by one asteroid |   1   |
+| Score by one asteroid |   5   |
 
 ## 4.3. Player movement
 When player click **[Move left]** or **[Move right]** then the player moves in the corresponding direction with the speed ***[Player speed]***.

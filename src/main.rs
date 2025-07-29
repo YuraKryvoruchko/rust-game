@@ -13,6 +13,9 @@ const ASTEROID_MOVE_SPEED: f32 = 250.0;
 const ASTEROID_SPAWN_HEIGHT: f32 = 550.0;
 const ASTEROID_SPAWN_DIAPASON: Vec2 = Vec2::new(-200.0, 200.0);
 const ASTEROID_DIAMETER: f32 = 82.0;
+const ASTEROID_DAMAGE: i32 = 1;
+
+const SCORE_BY_ONE_ASTEROID: i32 = 5;
 
 #[derive(Component)]
 struct Direction {
@@ -50,13 +53,25 @@ struct DamageSound(Handle<AudioSource>);
 #[derive(Event)]
 struct AsteroidCollisionEvent(Entity);
 
+#[derive(Event)]
+struct AsteroidDamageCollisionEvent();
+
+#[derive(Component)]
+struct FPSText;
+#[derive(Component)]
+struct ScoreText;
+#[derive(Resource)]
+struct Score(i32);
+
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .insert_resource(AsteroidSpawTimer(Timer::from_seconds(2.0, TimerMode::Repeating)))
         .insert_resource(LazerShootingTimer(Timer::from_seconds(0.5, TimerMode::Once)))
+        .insert_resource(Score(0))
         .add_event::<AsteroidCollisionEvent>()
-        .add_systems(Startup, (startup, load_audio))
+        .add_event::<AsteroidDamageCollisionEvent>()
+        .add_systems(Startup, (startup, load_audio, load_ui))
         .add_systems(Update, (
             handle_input, 
             lazer_shooting, 
@@ -65,7 +80,12 @@ fn main() {
             check_lazer_collision, 
             check_player_collision, 
             destroy_asteroids,
-            check_botton_wall_collsion
+            check_botton_wall_collsion,
+            handle_damage_asteroid_collision,
+            take_damage,
+            handle_player_dead,
+            update_player_health_ui,
+            update_score_ui
         ).chain())
         .run();
 }
@@ -98,6 +118,58 @@ fn load_audio(
 
     let damage_sound = asset_server.load("audio/sfx_lose.ogg");
     commands.insert_resource(DamageSound(damage_sound));
+}
+
+fn load_ui(
+    mut commands: Commands
+) {
+    commands.spawn((
+        Text::new("Health: "),
+        Node {
+            position_type: PositionType::Absolute,
+            left: Val::Px(5.0),
+            top: Val::Px(5.0),
+            ..default()
+        }
+    ))
+    .with_child((
+        TextSpan::default(),
+        FPSText
+    ));
+
+    commands.spawn((
+        Text::new("Score: "),
+        Node {
+            position_type: PositionType::Absolute,
+            right: Val::Px(5.0),
+            top: Val::Px(5.0),
+            ..default()
+        },
+    ))
+    .with_child((
+        TextSpan::default(),
+        ScoreText
+    ));
+}
+
+fn update_player_health_ui(
+    health: Single<&Health, With<Player>>,
+    mut text_query: Query<&mut TextSpan, With<FPSText>>
+) {
+    let value = health.0;
+    for mut span in &mut text_query {
+        **span = format!("{value}");
+    }
+}
+
+fn update_score_ui(
+    score: Res<Score>,
+    mut text_query: Query<&mut TextSpan, With<ScoreText>>
+) {
+    let value = score.0;
+    for mut span in &mut text_query {
+        **span = format!("{value}")
+    }
 }
 
 fn handle_input(
@@ -199,10 +271,12 @@ fn check_lazer_collision(
 
 fn destroy_asteroids(
     mut commands: Commands,
-    mut collision_events: EventReader<AsteroidCollisionEvent>
+    mut collision_events: EventReader<AsteroidCollisionEvent>,
+    mut score: ResMut<Score>
 ) {
     for event in collision_events.read() {
         commands.entity(event.0).despawn();
+        score.0 += SCORE_BY_ONE_ASTEROID;
     }
 }
 
@@ -244,4 +318,46 @@ fn check_botton_wall_collsion(
             commands.spawn((AudioPlayer(sound.clone()), PlaybackSettings::DESPAWN));
         }
     }
+}
+
+fn handle_damage_asteroid_collision(
+    mut player: Single<(&mut Health, Entity), With<Player>>,
+    mut collision_events: EventReader<AsteroidDamageCollisionEvent>,
+    mut commands: Commands
+) {
+    let (health, entity) = &mut* player;
+    for _ in collision_events.read() {
+        health.0 -= ASTEROID_DAMAGE;
+        if health.0 <= 0 {
+            commands.entity(*entity).despawn();
+        }
+    }
+
+    collision_events.clear();
+}
+
+#[derive(Component)]
+struct Damage(i32);
+
+#[derive(Component)]
+struct Dead;
+
+fn take_damage(
+    a: Query<(&mut Health, &Damage, Entity)>,
+    mut commands: Commands
+) {
+    for (mut health, damage, entity) in a {
+        health.0 -= damage.0;
+        if health.0 <= 0 {
+            commands.entity(entity).insert(Dead);
+        }
+        commands.entity(entity).remove::<Damage>();
+    }
+}
+
+fn handle_player_dead(
+    mut player: Single<(&mut Sprite), (With<Player>, With<Dead>)>
+) {
+    let sprite = &mut*player;
+    sprite.color = Color::srgb(1.0, 0.0, 0.0)
 }
