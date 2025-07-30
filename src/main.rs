@@ -50,10 +50,18 @@ struct LazerShootingSound(Handle<AudioSource>);
 #[derive(Resource, Deref)]
 struct DamageSound(Handle<AudioSource>);
 
-#[derive(Event)]
-struct AsteroidCollisionEvent(Entity);
+#[derive(Component)]
+struct Damage(i32);
 
-#[derive(Event)]
+#[derive(Component)]
+struct Dead;
+
+#[derive(Component)]
+struct Destroy;
+
+#[derive(Event, Default)]
+struct AsteroidCollisionByLazerEvent();
+#[derive(Event, Default)]
 struct AsteroidDamageCollisionEvent();
 
 #[derive(Component)]
@@ -69,7 +77,7 @@ fn main() {
         .insert_resource(AsteroidSpawTimer(Timer::from_seconds(2.0, TimerMode::Repeating)))
         .insert_resource(LazerShootingTimer(Timer::from_seconds(0.5, TimerMode::Once)))
         .insert_resource(Score(0))
-        .add_event::<AsteroidCollisionEvent>()
+        .add_event::<AsteroidCollisionByLazerEvent>()
         .add_event::<AsteroidDamageCollisionEvent>()
         .add_systems(Startup, (startup, load_audio, load_ui))
         .add_systems(Update, (
@@ -79,11 +87,12 @@ fn main() {
             move_objects, 
             check_lazer_collision, 
             check_player_collision, 
-            destroy_asteroids,
             check_botton_wall_collsion,
-            handle_damage_asteroid_collision,
+            handle_asteroid_damage_collision,
             take_damage,
             handle_player_dead,
+            destroy_system,
+            calculate_score,
             update_player_health_ui,
             update_score_ui
         ).chain())
@@ -172,6 +181,91 @@ fn update_score_ui(
     }
 }
 
+#[allow(dead_code)]
+fn spawn_game_over_panel(
+    score: Res<Score>,
+    mut commands: Commands
+) {
+    let value = score.0;
+
+    commands.spawn((
+        Node {
+            width: Val::Percent(60.0),
+            height: Val::Percent(60.0),
+            align_self: AlignSelf::Center,
+            align_items: AlignItems::Center,
+            align_content: AlignContent::Center,
+            flex_direction: FlexDirection::Column,
+            justify_content: JustifyContent::Center,
+            justify_self: JustifySelf::Center,
+            ..Default::default()
+        },
+        BackgroundColor(Color::srgb(0.3, 0.3, 0.3))
+    ))
+    .with_children(|parent| {
+        parent.spawn((
+            Text::new("GAME OVER!"),
+            TextFont {
+                font_size: 40.0,
+                ..Default::default()
+            }
+        ));
+        parent.spawn(
+            Text::new(format!("Score: {value}"))
+        );
+        parent.spawn(
+            Text::new(format!("Your record: {value}"))
+        );
+        
+        
+        // restart button
+        parent.spawn((
+            Button,
+            Node {
+                width: Val::Px(150.0),
+                height: Val::Px(65.0),
+                border: UiRect::all(Val::Px(5.0)),
+                align_content: AlignContent::Center,
+                align_items: AlignItems::Center,
+                ..Default::default()
+            },
+            BorderColor(Color::srgb(0.0, 1.0, 0.0)),
+            BorderRadius::MAX,
+            BackgroundColor(Color::srgb(1.0, 0.0, 0.0)),
+        ))
+        .with_children(|parent| {
+            parent.spawn((
+                Text::new("Restart"),
+                TextColor(Color::srgb(0.9, 0.9, 0.9)),
+                TextShadow::default()
+            ));
+        });
+
+        // exit to menu button
+        parent.spawn((
+            Button,
+            Node {
+                width: Val::Px(150.0),
+                height: Val::Px(65.0),
+                border: UiRect::all(Val::Px(5.0)),
+                align_content: AlignContent::Center,
+                align_items: AlignItems::Center,
+                ..Default::default()
+            },
+            BorderColor(Color::srgb(0.0, 1.0, 0.0)),
+            BorderRadius::MAX,
+            BackgroundColor(Color::srgb(1.0, 0.0, 0.0)),
+        ))
+        .with_children(|parent| {
+            parent.spawn((
+                Text::new("Exit to menu"),
+                TextColor(Color::srgb(0.9, 0.9, 0.9)),
+                TextShadow::default()
+            ));
+        });
+    });
+}
+
 fn handle_input(
     input: Res<ButtonInput<KeyCode>>, 
     mut directions: Query<&mut Direction, With<Player>>
@@ -248,45 +342,36 @@ fn spawn_asteroid(
 fn check_lazer_collision(
     lazers: Query<(Entity, &Transform), (With<Lazer>, Without<Asteroid>)>, 
     asteroids: Query<(Entity, &Transform), (With<Asteroid>, Without<Lazer>)>,
-    mut collision_events: EventWriter<AsteroidCollisionEvent>, 
+    mut collision_events: EventWriter<AsteroidCollisionByLazerEvent>, 
     mut commands: Commands
 ) {
     for (lazer_entity, lazer) in &lazers {
         if lazer.translation.y > ASTEROID_SPAWN_HEIGHT {
-            commands.entity(lazer_entity).despawn();
+            commands.entity(lazer_entity).insert(Destroy);
             return;
         }
-
+        
         for (asteroid_entity, astreroid) in &asteroids {
             let asteroid_collider =  BoundingCircle::new(astreroid.translation.truncate(), ASTEROID_DIAMETER / 2.0);
             let lazer_collider = Aabb2d::new(lazer.translation.truncate(), lazer.scale.truncate() / 2.0);
 
             if lazer_collider.intersects(&asteroid_collider) {
-                commands.entity(lazer_entity).despawn();
-                collision_events.write(AsteroidCollisionEvent(asteroid_entity));
+                commands.entity(lazer_entity).insert(Destroy);
+                commands.entity(asteroid_entity).insert(Destroy);
+                collision_events.write_default();
             }
         }
     }
 }
 
-fn destroy_asteroids(
-    mut commands: Commands,
-    mut collision_events: EventReader<AsteroidCollisionEvent>,
-    mut score: ResMut<Score>
-) {
-    for event in collision_events.read() {
-        commands.entity(event.0).despawn();
-        score.0 += SCORE_BY_ONE_ASTEROID;
-    }
-}
-
 fn check_player_collision(
-    mut player: Single<(&mut Transform, &mut Health), (With<Player>, Without<Asteroid>)>,
+    mut player: Single<&mut Transform, (With<Player>, Without<Asteroid>)>,
     asteroids: Query<(Entity, &Transform), (With<Asteroid>, Without<Player>)>,
-    sound: Res<DamageSound>, 
+    sound: Res<DamageSound>,
+    mut collision_writer: EventWriter<AsteroidDamageCollisionEvent>,
     mut commands: Commands
 ) { 
-    let (player_transform,  player_health) = &mut*player;
+    let player_transform = &mut*player;
 
     if player_transform.translation.x < ASTEROID_SPAWN_DIAPASON.x { player_transform.translation.x = ASTEROID_SPAWN_DIAPASON.x }
     else if player_transform.translation.x > ASTEROID_SPAWN_DIAPASON.y { player_transform.translation.x = ASTEROID_SPAWN_DIAPASON.y }
@@ -298,9 +383,8 @@ fn check_player_collision(
     for (asteroid_entity, asteroid_transform) in &asteroids {
         let asteroid_collider = BoundingCircle::new(asteroid_transform.translation.truncate(), ASTEROID_DIAMETER / 2.0);
         if body_collider.intersects(&asteroid_collider) || wing_collider.intersects(&asteroid_collider) {
-            player_health.0 -= 1;
-            println!("Player health: {}", player_health.0);
-            commands.entity(asteroid_entity).despawn();
+            collision_writer.write_default();
+            commands.entity(asteroid_entity).insert(Destroy);
             commands.spawn((AudioPlayer(sound.clone()), PlaybackSettings::DESPAWN));
         }
     }
@@ -309,38 +393,33 @@ fn check_player_collision(
 fn check_botton_wall_collsion(
     asteroids: Query<(Entity, &Transform), (With<Asteroid>, Without<Player>)>,
     sound: Res<DamageSound>,
-    mut collision_events: EventWriter<AsteroidCollisionEvent>, 
+    mut collision_events: EventWriter<AsteroidDamageCollisionEvent>, 
     mut commands: Commands,
 ) {
     for (entity, transform) in &asteroids {
-        if transform.translation.y < -550.0 {
-            collision_events.write(AsteroidCollisionEvent(entity));
+        if transform.translation.y < -ASTEROID_SPAWN_HEIGHT {
+            collision_events.write(AsteroidDamageCollisionEvent());
+            commands.entity(entity).insert(Destroy);
             commands.spawn((AudioPlayer(sound.clone()), PlaybackSettings::DESPAWN));
         }
     }
 }
 
-fn handle_damage_asteroid_collision(
-    mut player: Single<(&mut Health, Entity), With<Player>>,
-    mut collision_events: EventReader<AsteroidDamageCollisionEvent>,
+fn handle_asteroid_damage_collision(
+    player_entity: Single<Entity, With<Player>>,
+    mut reader: EventReader<AsteroidDamageCollisionEvent>,
     mut commands: Commands
 ) {
-    let (health, entity) = &mut* player;
-    for _ in collision_events.read() {
-        health.0 -= ASTEROID_DAMAGE;
-        if health.0 <= 0 {
-            commands.entity(*entity).despawn();
+    if !reader.is_empty() {
+        let mut damage = 0;
+        for _ in reader.read() {
+            damage += ASTEROID_DAMAGE;
         }
+
+        commands.entity(player_entity.entity()).insert(Damage(damage));
+        reader.clear();
     }
-
-    collision_events.clear();
 }
-
-#[derive(Component)]
-struct Damage(i32);
-
-#[derive(Component)]
-struct Dead;
 
 fn take_damage(
     a: Query<(&mut Health, &Damage, Entity)>,
@@ -356,8 +435,30 @@ fn take_damage(
 }
 
 fn handle_player_dead(
-    mut player: Single<(&mut Sprite), (With<Player>, With<Dead>)>
+    mut player: Single<&mut Sprite, (With<Player>, With<Dead>)>
 ) {
     let sprite = &mut*player;
     sprite.color = Color::srgb(1.0, 0.0, 0.0)
+}
+
+fn calculate_score(
+    mut score: ResMut<Score>,
+    mut event_reader: EventReader<AsteroidCollisionByLazerEvent>
+) {
+    if !event_reader.is_empty() {
+        for _e in event_reader.read() {
+            score.0 += SCORE_BY_ONE_ASTEROID;
+        }
+
+        event_reader.clear();
+    }
+}
+
+fn destroy_system(
+    destroyed_entities: Query<Entity, With<Destroy>>,
+    mut commands: Commands
+) {
+    for entity in destroyed_entities {
+        commands.entity(entity).despawn();
+    }
 }
