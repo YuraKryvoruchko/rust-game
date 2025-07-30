@@ -5,11 +5,11 @@ const PLAYER_MOVE_SPEED: f32 = 250.0;
 const PLAYER_BODY_SIZE: Vec2 = Vec2::new(34.0, 75.0);
 const PLAYER_WINGS_SIZE: Vec2 = Vec2::new(99.0, 35.0);
 
-const LAZER_SPEED: f32 = 400.0;
+const LAZER_SPEED: f32 = 600.0;
 const LAZER_Y_OFFSET: f32 = 40.0;
 const LAZER_LAYER: f32 = -1.0;
 
-const ASTEROID_MOVE_SPEED: f32 = 250.0;
+const ASTEROID_MOVE_SPEED: f32 = 350.0;
 const ASTEROID_SPAWN_HEIGHT: f32 = 550.0;
 const ASTEROID_SPAWN_DIAPASON: Vec2 = Vec2::new(-200.0, 200.0);
 const ASTEROID_DIAMETER: f32 = 82.0;
@@ -65,11 +65,15 @@ struct AsteroidCollisionByLazerEvent();
 struct AsteroidDamageCollisionEvent();
 
 #[derive(Component)]
-struct FPSText;
+struct HealthText;
 #[derive(Component)]
 struct ScoreText;
+#[derive(Component)]
+struct GameOverPanel;
+
 #[derive(Resource)]
 struct Score(i32);
+
 
 fn main() {
     App::new()
@@ -79,7 +83,7 @@ fn main() {
         .insert_resource(Score(0))
         .add_event::<AsteroidCollisionByLazerEvent>()
         .add_event::<AsteroidDamageCollisionEvent>()
-        .add_systems(Startup, (startup, load_audio, load_ui))
+        .add_systems(Startup, (startup, load_audio, load_ui, spawn_game_over_panel))
         .add_systems(Update, (
             handle_input, 
             lazer_shooting, 
@@ -143,7 +147,7 @@ fn load_ui(
     ))
     .with_child((
         TextSpan::default(),
-        FPSText
+        HealthText
     ));
 
     commands.spawn((
@@ -163,7 +167,7 @@ fn load_ui(
 
 fn update_player_health_ui(
     health: Single<&Health, With<Player>>,
-    mut text_query: Query<&mut TextSpan, With<FPSText>>
+    mut text_query: Query<&mut TextSpan, With<HealthText>>
 ) {
     let value = health.0;
     for mut span in &mut text_query {
@@ -181,7 +185,7 @@ fn update_score_ui(
     }
 }
 
-#[allow(dead_code)]
+//#[allow(dead_code)]
 fn spawn_game_over_panel(
     score: Res<Score>,
     mut commands: Commands
@@ -200,7 +204,9 @@ fn spawn_game_over_panel(
             justify_self: JustifySelf::Center,
             ..Default::default()
         },
-        BackgroundColor(Color::srgb(0.3, 0.3, 0.3))
+        BackgroundColor(Color::srgb(0.3, 0.3, 0.3)),
+        Visibility::Hidden,
+        GameOverPanel
     ))
     .with_children(|parent| {
         parent.spawn((
@@ -435,10 +441,13 @@ fn take_damage(
 }
 
 fn handle_player_dead(
-    mut player: Single<&mut Sprite, (With<Player>, With<Dead>)>
+    mut player: Single<&mut Sprite, (With<Player>, With<Dead>)>,
+    mut game_over_menu_visibility: Single<&mut Visibility, With<GameOverPanel>>
 ) {
     let sprite = &mut*player;
-    sprite.color = Color::srgb(1.0, 0.0, 0.0)
+    sprite.color = Color::srgb(1.0, 0.0, 0.0);
+
+    **game_over_menu_visibility = Visibility::Visible;
 }
 
 fn calculate_score(
