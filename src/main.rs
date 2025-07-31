@@ -1,5 +1,10 @@
 use bevy::{math::bounding::{Aabb2d, BoundingCircle, IntersectsVolume}, prelude::*};
 
+mod ui;
+use crate::ui::{HealthText, ScoreText};
+
+mod saving_system;
+
 const PLAYER_SPAWN_HEIGHT: f32 = -400.0;
 const PLAYER_MOVE_SPEED: f32 = 250.0;
 const PLAYER_BODY_SIZE: Vec2 = Vec2::new(34.0, 75.0);
@@ -60,30 +65,31 @@ struct Dead;
 struct Destroy;
 
 #[derive(Event, Default)]
-struct AsteroidCollisionByLazerEvent();
+struct AsteroidCollisionByLazerEvent;
 #[derive(Event, Default)]
-struct AsteroidDamageCollisionEvent();
-
-#[derive(Component)]
-struct HealthText;
-#[derive(Component)]
-struct ScoreText;
-#[derive(Component)]
-struct GameOverPanel;
+struct AsteroidDamageCollisionEvent;
+#[derive(Event, Default)]
+struct GameOverEvent;
 
 #[derive(Resource)]
 struct Score(i32);
-
+#[derive(Resource, PartialEq)]
+enum GameState {
+    Game,
+    GameOver
+}
 
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
+        .insert_resource(GameState::Game)
         .insert_resource(AsteroidSpawTimer(Timer::from_seconds(2.0, TimerMode::Repeating)))
         .insert_resource(LazerShootingTimer(Timer::from_seconds(0.5, TimerMode::Once)))
         .insert_resource(Score(0))
         .add_event::<AsteroidCollisionByLazerEvent>()
         .add_event::<AsteroidDamageCollisionEvent>()
-        .add_systems(Startup, (startup, load_audio, load_ui, spawn_game_over_panel))
+        .add_event::<GameOverEvent>()
+        .add_systems(Startup, (startup, load_audio, ui::load_ui))
         .add_systems(Update, (
             handle_input, 
             lazer_shooting, 
@@ -95,6 +101,7 @@ fn main() {
             handle_asteroid_damage_collision,
             take_damage,
             handle_player_dead,
+            handle_game_over_event,
             destroy_system,
             calculate_score,
             update_player_health_ui,
@@ -133,38 +140,6 @@ fn load_audio(
     commands.insert_resource(DamageSound(damage_sound));
 }
 
-fn load_ui(
-    mut commands: Commands
-) {
-    commands.spawn((
-        Text::new("Health: "),
-        Node {
-            position_type: PositionType::Absolute,
-            left: Val::Px(5.0),
-            top: Val::Px(5.0),
-            ..default()
-        }
-    ))
-    .with_child((
-        TextSpan::default(),
-        HealthText
-    ));
-
-    commands.spawn((
-        Text::new("Score: "),
-        Node {
-            position_type: PositionType::Absolute,
-            right: Val::Px(5.0),
-            top: Val::Px(5.0),
-            ..default()
-        },
-    ))
-    .with_child((
-        TextSpan::default(),
-        ScoreText
-    ));
-}
-
 fn update_player_health_ui(
     health: Single<&Health, With<Player>>,
     mut text_query: Query<&mut TextSpan, With<HealthText>>
@@ -183,93 +158,6 @@ fn update_score_ui(
     for mut span in &mut text_query {
         **span = format!("{value}")
     }
-}
-
-//#[allow(dead_code)]
-fn spawn_game_over_panel(
-    score: Res<Score>,
-    mut commands: Commands
-) {
-    let value = score.0;
-
-    commands.spawn((
-        Node {
-            width: Val::Percent(60.0),
-            height: Val::Percent(60.0),
-            align_self: AlignSelf::Center,
-            align_items: AlignItems::Center,
-            align_content: AlignContent::Center,
-            flex_direction: FlexDirection::Column,
-            justify_content: JustifyContent::Center,
-            justify_self: JustifySelf::Center,
-            ..Default::default()
-        },
-        BackgroundColor(Color::srgb(0.3, 0.3, 0.3)),
-        Visibility::Hidden,
-        GameOverPanel
-    ))
-    .with_children(|parent| {
-        parent.spawn((
-            Text::new("GAME OVER!"),
-            TextFont {
-                font_size: 40.0,
-                ..Default::default()
-            }
-        ));
-        parent.spawn(
-            Text::new(format!("Score: {value}"))
-        );
-        parent.spawn(
-            Text::new(format!("Your record: {value}"))
-        );
-        
-        
-        // restart button
-        parent.spawn((
-            Button,
-            Node {
-                width: Val::Px(150.0),
-                height: Val::Px(65.0),
-                border: UiRect::all(Val::Px(5.0)),
-                align_content: AlignContent::Center,
-                align_items: AlignItems::Center,
-                ..Default::default()
-            },
-            BorderColor(Color::srgb(0.0, 1.0, 0.0)),
-            BorderRadius::MAX,
-            BackgroundColor(Color::srgb(1.0, 0.0, 0.0)),
-        ))
-        .with_children(|parent| {
-            parent.spawn((
-                Text::new("Restart"),
-                TextColor(Color::srgb(0.9, 0.9, 0.9)),
-                TextShadow::default()
-            ));
-        });
-
-        // exit to menu button
-        parent.spawn((
-            Button,
-            Node {
-                width: Val::Px(150.0),
-                height: Val::Px(65.0),
-                border: UiRect::all(Val::Px(5.0)),
-                align_content: AlignContent::Center,
-                align_items: AlignItems::Center,
-                ..Default::default()
-            },
-            BorderColor(Color::srgb(0.0, 1.0, 0.0)),
-            BorderRadius::MAX,
-            BackgroundColor(Color::srgb(1.0, 0.0, 0.0)),
-        ))
-        .with_children(|parent| {
-            parent.spawn((
-                Text::new("Exit to menu"),
-                TextColor(Color::srgb(0.9, 0.9, 0.9)),
-                TextShadow::default()
-            ));
-        });
-    });
 }
 
 fn handle_input(
@@ -404,7 +292,7 @@ fn check_botton_wall_collsion(
 ) {
     for (entity, transform) in &asteroids {
         if transform.translation.y < -ASTEROID_SPAWN_HEIGHT {
-            collision_events.write(AsteroidDamageCollisionEvent());
+            collision_events.write(AsteroidDamageCollisionEvent);
             commands.entity(entity).insert(Destroy);
             commands.spawn((AudioPlayer(sound.clone()), PlaybackSettings::DESPAWN));
         }
@@ -441,13 +329,37 @@ fn take_damage(
 }
 
 fn handle_player_dead(
-    mut player: Single<&mut Sprite, (With<Player>, With<Dead>)>,
-    mut game_over_menu_visibility: Single<&mut Visibility, With<GameOverPanel>>
+    game_state: Res<GameState>,
+    mut writer: EventWriter<GameOverEvent>,
+    mut player: Single<&mut Sprite, (With<Player>, With<Dead>)>
 ) {
+    if *game_state == GameState::GameOver { return; }
+
     let sprite = &mut*player;
     sprite.color = Color::srgb(1.0, 0.0, 0.0);
+    writer.write_default();
+}
 
-    **game_over_menu_visibility = Visibility::Visible;
+fn handle_game_over_event(
+    score_res: Res<Score>,
+    mut state: ResMut<GameState>,
+    mut event_reader: EventReader<GameOverEvent>,
+    commands: Commands
+) {
+    if event_reader.is_empty() { return; }
+
+    event_reader.clear();
+    *state = GameState::GameOver;
+
+    let score = score_res.0;
+    let mut record = saving_system::get_record();
+
+    if score > record {
+        record = score;
+        saving_system::save_record(score);
+    }
+
+    ui::spawn_game_over_panel(score, record, commands);
 }
 
 fn calculate_score(
