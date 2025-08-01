@@ -17,21 +17,22 @@ pub fn get_record() -> i32 {
         Ok(file) => file
     };
 
-    let mut value = String::new();
-    match file.read_to_string(&mut value) {
+    let mut raw_bytes: [u8; 4] = [0; 4];
+    match file.read(&mut raw_bytes) {
         Err(why) => panic!("couldn't read {}: {}", display, why),
-        Ok(_) => print!("{} contains:\n{}", display, value),
+        Ok(_) => print!("{} contains:\n{:?}", display, raw_bytes),
     }
-
-    match value.parse::<i32>() {
-        Err(why) => panic!("couldn't parse {}: {}", display, why),
-        Ok(result) => result
-    }
+    i32::from_ne_bytes(raw_bytes)
 }
 
 pub fn save_record(record: i32) {
     let mut data_file = create_file();
-    data_file.write_all(&record.to_string().as_bytes()).unwrap();
+
+    let record_as_bytes = i32::to_ne_bytes(record);
+    match data_file.write_all(&record_as_bytes) {
+        Err(why) => panic!("couldn't save record! Why: {}", why),
+        Ok(_) => println!("record is saved: {}({:?})", record, record_as_bytes)
+    };
 }
 
 fn create_file() -> File {

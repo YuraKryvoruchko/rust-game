@@ -3,7 +3,7 @@ use bevy::{math::bounding::{Aabb2d, BoundingCircle, IntersectsVolume}, prelude::
 mod ui;
 use crate::ui::{HealthText, ScoreText};
 
-mod saving_system;
+mod database;
 
 const PLAYER_SPAWN_HEIGHT: f32 = -400.0;
 const PLAYER_MOVE_SPEED: f32 = 250.0;
@@ -352,11 +352,11 @@ fn handle_game_over_event(
     *state = GameState::GameOver;
 
     let score = score_res.0;
-    let mut record = saving_system::get_record();
+    let mut record = database::get_record();
 
     if score > record {
         record = score;
-        saving_system::save_record(score);
+        database::save_record(score);
     }
 
     ui::spawn_game_over_panel(score, record, commands);
