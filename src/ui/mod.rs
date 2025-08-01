@@ -1,8 +1,6 @@
 use bevy::{prelude::*, text::FontSmoothing};
 use bevy_ecs::relationship::RelatedSpawnerCommands;
 
-use crate::Score;
-
 const NORMAL_BUTTON: Color = Color::srgb(0.15, 0.15, 0.15);
 const HOVERED_BUTTON: Color = Color::srgb(0.25, 0.25, 0.25);
 const PRESSED_BUTTON: Color = Color::srgb(0.35, 0.75, 0.35);
@@ -138,6 +136,7 @@ pub fn spawn_game_over_panel(
 #[derive(Component)]
 pub struct MainMenu;
 
+
 pub fn setup_menu(
     mut commands: Commands
 ) {
@@ -156,12 +155,62 @@ pub fn setup_menu(
     ))
     .with_children(|parent| {
         create_text(parent, 50.0, "Rust-Shooter");
-        create_button(parent, 300.0, 90.0, "Play");
-        create_button(parent, 300.0, 90.0, "Settings");
-        create_button(parent, 300.0, 90.0, "Reset record");
-        create_button(parent, 300.0, 90.0, "Exit");
+        create_button(parent, 300.0, 90.0, "Play", MenuButtonAction::Play);
+        create_button(parent, 300.0, 90.0, "Settings", MenuButtonAction::Settings);
+        create_button(parent, 300.0, 90.0, "Reset record", MenuButtonAction::Reset);
+        create_button(parent, 300.0, 90.0, "Exit", MenuButtonAction::Exit);
     });
     
+}
+
+pub fn button_system(
+    interaction_query: Query<(
+        &Interaction,
+        &mut BackgroundColor,
+        &mut BorderColor
+    ),
+    (Changed<Interaction>, With<Button>)>
+) {
+    for (interaction, mut background_color, mut border_color) in interaction_query {
+        match *interaction {
+            Interaction::Pressed => {
+                *background_color = PRESSED_BUTTON.into();
+            }
+            Interaction::Hovered => {
+                *background_color = HOVERED_BUTTON.into();
+            }
+            Interaction::None => {
+                *background_color = NORMAL_BUTTON.into();
+            }
+        }
+    }
+}
+
+#[derive(Component)]
+pub enum MenuButtonAction {
+    Play,
+    Settings,
+    Reset,
+    Exit,
+}
+
+pub fn main_menu_action(
+    interaction_query: Query<
+        (&Interaction, &MenuButtonAction),
+        (Changed<Interaction>, With<Button>),
+    >,
+    mut app_exit_events: EventWriter<AppExit>,
+) {
+    for (interaction, action) in interaction_query {
+        if *interaction == Interaction::Pressed {
+            match action {
+                MenuButtonAction::Exit => {
+                    app_exit_events.write_default();
+                }
+                _ => ()
+            }
+        }
+    }
 }
 
 fn create_text(
@@ -186,7 +235,8 @@ fn create_button(
     parent: &mut RelatedSpawnerCommands<'_, ChildOf>,
     width: f32,
     height: f32, 
-    button_text: &str
+    button_text: &str,
+    button_action: MenuButtonAction
 ) {
     parent.spawn((
         Button,
@@ -203,6 +253,7 @@ fn create_button(
         BorderColor(Color::BLACK),
         BorderRadius::MAX,
         BackgroundColor(NORMAL_BUTTON),
+        button_action,
         children![(
             Text::new(button_text),
             TextFont {
@@ -211,6 +262,6 @@ fn create_button(
             },
             TextColor(Color::srgb(0.9, 0.9, 0.9)),
             TextShadow::default()
-        )]
+        )],
     ));
 }

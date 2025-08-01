@@ -110,6 +110,7 @@ fn main() {
         .init_state::<GameState>()
 
         .add_systems(Startup, (startup, load_audio, ui::setup_menu/*ui::load_ui*/))
+        .add_systems(Update, (ui::button_system, ui::main_menu_action).chain())
         /*.add_systems(Update, (
             handle_input, 
             lazer_shooting, 
