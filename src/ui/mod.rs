@@ -1,4 +1,13 @@
-use bevy::prelude::*;
+use bevy::{prelude::*, text::FontSmoothing};
+use bevy_ecs::relationship::RelatedSpawnerCommands;
+
+use crate::Score;
+
+const NORMAL_BUTTON: Color = Color::srgb(0.15, 0.15, 0.15);
+const HOVERED_BUTTON: Color = Color::srgb(0.25, 0.25, 0.25);
+const PRESSED_BUTTON: Color = Color::srgb(0.35, 0.75, 0.35);
+
+const DEFAULT_MARGIN: UiRect = UiRect::all(Val::Px(5.0));
 
 #[derive(Component)]
 pub struct HealthText;
@@ -124,4 +133,84 @@ pub fn spawn_game_over_panel(
             ));
         });
     });
+}
+
+#[derive(Component)]
+pub struct MainMenu;
+
+pub fn setup_menu(
+    mut commands: Commands
+) {
+    commands.spawn((
+        Node {
+            width: Val::Percent(100.0),
+            height: Val::Percent(100.0),
+            flex_direction: FlexDirection::Column,
+            align_items: AlignItems::Center,
+            justify_content: JustifyContent::Center,
+            ..Default::default()
+        },
+        BackgroundColor(Color::srgb(0.3, 0.3, 0.3)),
+        Visibility::Visible,
+        MainMenu
+    ))
+    .with_children(|parent| {
+        create_text(parent, 50.0, "Rust-Shooter");
+        create_button(parent, 300.0, 90.0, "Play");
+        create_button(parent, 300.0, 90.0, "Settings");
+        create_button(parent, 300.0, 90.0, "Reset record");
+        create_button(parent, 300.0, 90.0, "Exit");
+    });
+    
+}
+
+fn create_text(
+    parent: &mut RelatedSpawnerCommands<'_, ChildOf>, 
+    size: f32, 
+    text: &str
+) {
+    parent.spawn((
+        Node {
+            margin: DEFAULT_MARGIN,
+            ..Default::default()
+        },
+        Text::new(text),
+        TextFont {
+            font_size: size,
+            ..Default::default()
+        }
+    ));
+}
+
+fn create_button(
+    parent: &mut RelatedSpawnerCommands<'_, ChildOf>,
+    width: f32,
+    height: f32, 
+    button_text: &str
+) {
+    parent.spawn((
+        Button,
+        Node {
+            width: Val::Px(width),
+            height: Val::Px(height),
+            border: UiRect::all(Val::Px(5.0)),
+            justify_content: JustifyContent::Center,
+            align_content: AlignContent::Center,
+            align_items: AlignItems::Center,
+            margin: DEFAULT_MARGIN,
+            ..Default::default()
+        },
+        BorderColor(Color::BLACK),
+        BorderRadius::MAX,
+        BackgroundColor(NORMAL_BUTTON),
+        children![(
+            Text::new(button_text),
+            TextFont {
+                font_size: 33.0,
+                ..default()
+            },
+            TextColor(Color::srgb(0.9, 0.9, 0.9)),
+            TextShadow::default()
+        )]
+    ));
 }

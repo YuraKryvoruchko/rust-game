@@ -74,23 +74,43 @@ struct GameOverEvent;
 #[derive(Resource)]
 struct Score(i32);
 #[derive(Resource, PartialEq)]
-enum GameState {
+enum GameplayState {
     Game,
     GameOver
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, Default, States)]
+enum GameState {
+    #[default]
+    MainMenu,
+    InGame,
+}
+
+fn init_main_menu_state(app: &mut App) {
+    app
+        .add_systems(OnEnter(GameState::MainMenu), load_audio)
+        .add_systems(Update, load_audio.run_if(in_state(GameState::MainMenu)))
+        .add_systems(OnExit(GameState::MainMenu), load_audio);
+}
+
 fn main() {
+    let mut app: App = App::new();
+    init_main_menu_state(&mut app);
+
     App::new()
         .add_plugins(DefaultPlugins)
-        .insert_resource(GameState::Game)
+        .insert_resource(GameplayState::Game)
         .insert_resource(AsteroidSpawTimer(Timer::from_seconds(2.0, TimerMode::Repeating)))
         .insert_resource(LazerShootingTimer(Timer::from_seconds(0.5, TimerMode::Once)))
         .insert_resource(Score(0))
         .add_event::<AsteroidCollisionByLazerEvent>()
         .add_event::<AsteroidDamageCollisionEvent>()
         .add_event::<GameOverEvent>()
-        .add_systems(Startup, (startup, load_audio, ui::load_ui))
-        .add_systems(Update, (
+
+        .init_state::<GameState>()
+
+        .add_systems(Startup, (startup, load_audio, ui::setup_menu/*ui::load_ui*/))
+        /*.add_systems(Update, (
             handle_input, 
             lazer_shooting, 
             spawn_asteroid, 
@@ -106,7 +126,7 @@ fn main() {
             calculate_score,
             update_player_health_ui,
             update_score_ui
-        ).chain())
+        ).chain())*/
         .run();
 }
 
@@ -329,11 +349,11 @@ fn take_damage(
 }
 
 fn handle_player_dead(
-    game_state: Res<GameState>,
+    game_state: Res<GameplayState>,
     mut writer: EventWriter<GameOverEvent>,
     mut player: Single<&mut Sprite, (With<Player>, With<Dead>)>
 ) {
-    if *game_state == GameState::GameOver { return; }
+    if *game_state == GameplayState::GameOver { return; }
 
     let sprite = &mut*player;
     sprite.color = Color::srgb(1.0, 0.0, 0.0);
@@ -342,14 +362,14 @@ fn handle_player_dead(
 
 fn handle_game_over_event(
     score_res: Res<Score>,
-    mut state: ResMut<GameState>,
+    mut state: ResMut<GameplayState>,
     mut event_reader: EventReader<GameOverEvent>,
     commands: Commands
 ) {
     if event_reader.is_empty() { return; }
 
     event_reader.clear();
-    *state = GameState::GameOver;
+    *state = GameplayState::GameOver;
 
     let score = score_res.0;
     let mut record = database::get_record();
