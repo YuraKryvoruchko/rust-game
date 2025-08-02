@@ -1,11 +1,16 @@
-use bevy::{prelude::*, text::FontSmoothing};
+use bevy::prelude::*;
 use bevy_ecs::relationship::RelatedSpawnerCommands;
+
+use crate::GameState;
 
 const NORMAL_BUTTON: Color = Color::srgb(0.15, 0.15, 0.15);
 const HOVERED_BUTTON: Color = Color::srgb(0.25, 0.25, 0.25);
 const PRESSED_BUTTON: Color = Color::srgb(0.35, 0.75, 0.35);
 
 const DEFAULT_MARGIN: UiRect = UiRect::all(Val::Px(5.0));
+
+#[derive(Component)]
+pub struct Hud;
 
 #[derive(Component)]
 pub struct HealthText;
@@ -16,36 +21,53 @@ pub struct ScoreText;
 #[derive(Component)]
 pub struct GameOverPanel;
 
-pub fn load_ui(
+pub fn setup_hud(
     mut commands: Commands
 ) {
     commands.spawn((
-        Text::new("Health: "),
+        Hud,
         Node {
-            position_type: PositionType::Absolute,
-            left: Val::Px(5.0),
-            top: Val::Px(5.0),
-            ..default()
-        }
-    ))
-    .with_child((
-        TextSpan::default(),
-        HealthText
-    ));
-
-    commands.spawn((
-        Text::new("Score: "),
-        Node {
-            position_type: PositionType::Absolute,
-            right: Val::Px(5.0),
-            top: Val::Px(5.0),
-            ..default()
+            width: Val::Percent(100.0),
+            height: Val::Percent(100.0),
+            ..Default::default()
         },
     ))
-    .with_child((
-        TextSpan::default(),
-        ScoreText
-    ));
+    .with_children(|parent| {
+        parent.spawn((
+            Text::new("Health: "),
+            Node {
+                position_type: PositionType::Absolute,
+                left: Val::Px(5.0),
+                top: Val::Px(5.0),
+                ..default()
+            }
+        ))
+        .with_child((
+            TextSpan::default(),
+            HealthText
+        ));
+
+        parent.spawn((
+            Text::new("Score: "),
+            Node {
+                position_type: PositionType::Absolute,
+                right: Val::Px(5.0),
+                top: Val::Px(5.0),
+                ..default()
+            },
+        ))
+        .with_child((
+            TextSpan::default(),
+            ScoreText
+        ));
+    });
+}
+
+pub fn cleanup_hud(
+    hud: Single<Entity, With<Hud>>,
+    mut commands: Commands
+) {
+    commands.entity(hud.entity()).despawn();
 }
 
 pub fn spawn_game_over_panel(
@@ -136,6 +158,13 @@ pub fn spawn_game_over_panel(
 #[derive(Component)]
 pub struct MainMenu;
 
+#[derive(Component)]
+pub enum MenuButtonAction {
+    Play,
+    Settings,
+    Reset,
+    Exit,
+}
 
 pub fn setup_menu(
     mut commands: Commands
@@ -159,19 +188,24 @@ pub fn setup_menu(
         create_button(parent, 300.0, 90.0, "Settings", MenuButtonAction::Settings);
         create_button(parent, 300.0, 90.0, "Reset record", MenuButtonAction::Reset);
         create_button(parent, 300.0, 90.0, "Exit", MenuButtonAction::Exit);
-    });
-    
+    }); 
+}
+
+pub fn cleanup_menu(
+    menu: Single<Entity, With<MainMenu>>,
+    mut commands: Commands
+) {
+    commands.entity(menu.entity()).despawn();
 }
 
 pub fn button_system(
     interaction_query: Query<(
         &Interaction,
-        &mut BackgroundColor,
-        &mut BorderColor
+        &mut BackgroundColor
     ),
     (Changed<Interaction>, With<Button>)>
 ) {
-    for (interaction, mut background_color, mut border_color) in interaction_query {
+    for (interaction, mut background_color) in interaction_query {
         match *interaction {
             Interaction::Pressed => {
                 *background_color = PRESSED_BUTTON.into();
@@ -186,26 +220,22 @@ pub fn button_system(
     }
 }
 
-#[derive(Component)]
-pub enum MenuButtonAction {
-    Play,
-    Settings,
-    Reset,
-    Exit,
-}
-
 pub fn main_menu_action(
     interaction_query: Query<
         (&Interaction, &MenuButtonAction),
         (Changed<Interaction>, With<Button>),
     >,
     mut app_exit_events: EventWriter<AppExit>,
+    mut game_state: ResMut<NextState<GameState>>
 ) {
     for (interaction, action) in interaction_query {
         if *interaction == Interaction::Pressed {
             match action {
                 MenuButtonAction::Exit => {
                     app_exit_events.write_default();
+                }
+                MenuButtonAction::Play => {
+                    game_state.set(GameState::InGame);
                 }
                 _ => ()
             }
@@ -231,12 +261,12 @@ fn create_text(
     ));
 }
 
-fn create_button(
+fn create_button<A: Component>(
     parent: &mut RelatedSpawnerCommands<'_, ChildOf>,
     width: f32,
     height: f32, 
     button_text: &str,
-    button_action: MenuButtonAction
+    button_action: A
 ) {
     parent.spawn((
         Button,

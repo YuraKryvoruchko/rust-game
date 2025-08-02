@@ -108,10 +108,14 @@ fn main() {
         .add_event::<GameOverEvent>()
 
         .init_state::<GameState>()
+        .add_systems(Startup, (startup, load_audio/*ui::load_ui*/))
 
-        .add_systems(Startup, (startup, load_audio, ui::setup_menu/*ui::load_ui*/))
-        .add_systems(Update, (ui::button_system, ui::main_menu_action).chain())
-        /*.add_systems(Update, (
+        .add_systems(OnEnter(GameState::MainMenu), ui::setup_menu)
+        .add_systems(Update, (ui::button_system, ui::main_menu_action).run_if(in_state(GameState::MainMenu)))
+        .add_systems(OnExit(GameState::MainMenu), ui::cleanup_menu)
+
+        .add_systems(OnEnter(GameState::InGame), ui::setup_hud)
+        .add_systems(Update, (
             handle_input, 
             lazer_shooting, 
             spawn_asteroid, 
@@ -127,7 +131,9 @@ fn main() {
             calculate_score,
             update_player_health_ui,
             update_score_ui
-        ).chain())*/
+        ).run_if(in_state(GameState::InGame)).chain())
+        .add_systems(OnExit(GameState::InGame), ui::cleanup_hud)
+
         .run();
 }
 
