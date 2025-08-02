@@ -2,6 +2,7 @@ use bevy::prelude::*;
 use bevy_ecs::relationship::RelatedSpawnerCommands;
 
 use crate::GameState;
+use crate::gameplay::*;
 
 const NORMAL_BUTTON: Color = Color::srgb(0.15, 0.15, 0.15);
 const HOVERED_BUTTON: Color = Color::srgb(0.25, 0.25, 0.25);
@@ -68,6 +69,26 @@ pub fn cleanup_hud(
     mut commands: Commands
 ) {
     commands.entity(hud.entity()).despawn();
+}
+
+pub fn update_player_health_ui(
+    health: Single<&Health, With<Player>>,
+    mut text_query: Query<&mut TextSpan, With<HealthText>>
+) {
+    let value = health.0;
+    for mut span in &mut text_query {
+        **span = format!("{value}");
+    }
+}
+
+pub fn update_score_ui(
+    score: Res<Score>,
+    mut text_query: Query<&mut TextSpan, With<ScoreText>>
+) {
+    let value = score.0;
+    for mut span in &mut text_query {
+        **span = format!("{value}")
+    }
 }
 
 pub fn spawn_game_over_panel(
