@@ -3,8 +3,8 @@ use bevy::{math::bounding::{Aabb2d, BoundingCircle, IntersectsVolume}, prelude::
 use crate::database;
 
 const PLAYER_SPRITE_PATH: &str = "sprites/playerShip1_blue.png";
-const ASTEROID_SPRITE_PATH: &str = "sprites/laserBlue03.png";
-const LAZER_SPRITE_PATH: &str = "sprites/meteorGrey_big3.png";
+const ASTEROID_SPRITE_PATH: &str = "sprites/meteorGrey_big3.png";
+const LAZER_SPRITE_PATH: &str = "sprites/laserBlue03.png";
 
 pub const PLAYER_SPAWN_HEIGHT: f32 = -400.0;
 pub const PLAYER_MOVE_SPEED: f32 = 250.0;
@@ -44,6 +44,15 @@ pub struct Speed(pub f32);
 #[derive(Component)]
 pub struct Health(pub i32);
 
+#[derive(Component)]
+pub struct Damage(i32);
+
+#[derive(Component)]
+pub struct Dead;
+
+#[derive(Component)]
+pub struct Destroy;
+
 #[derive(Resource)]
 pub struct AsteroidSpawTimer(pub Timer);
 
@@ -56,15 +65,6 @@ pub struct LazerShootingSound(pub Handle<AudioSource>);
 #[derive(Resource, Deref)]
 pub struct DamageSound(pub Handle<AudioSource>);
 
-#[derive(Component)]
-pub struct Damage(i32);
-
-#[derive(Component)]
-pub struct Dead;
-
-#[derive(Component)]
-pub struct Destroy;
-
 #[derive(Event, Default)]
 pub struct AsteroidCollisionByLazerEvent;
 #[derive(Event, Default)]
@@ -74,6 +74,8 @@ pub struct GameOverEvent;
 
 #[derive(Resource)]
 pub struct Score(pub i32);
+#[derive(Resource)]
+pub struct ScoreRecord(pub i32);
 #[derive(Resource, PartialEq)]
 pub enum GameplayState {
     Game,
@@ -263,12 +265,13 @@ pub fn take_damage(
 }
 
 pub fn handle_player_dead(
-    game_state: Res<GameplayState>,
+    mut game_state: ResMut<GameplayState>,
     mut writer: EventWriter<GameOverEvent>,
     mut player: Single<&mut Sprite, (With<Player>, With<Dead>)>
 ) {
     if *game_state == GameplayState::GameOver { return; }
 
+    *game_state = GameplayState::GameOver;
     let sprite = &mut*player;
     sprite.color = Color::srgb(1.0, 0.0, 0.0);
     writer.write_default();
@@ -276,24 +279,23 @@ pub fn handle_player_dead(
 
 pub fn handle_game_over_event(
     score_res: Res<Score>,
+    mut record_res: ResMut<ScoreRecord>,
     mut state: ResMut<GameplayState>,
     mut event_reader: EventReader<GameOverEvent>,
-    commands: Commands
 ) {
-    if event_reader.is_empty() { return; }
+    if !event_reader.is_empty() {
+        event_reader.clear();
+        *state = GameplayState::GameOver;
 
-    event_reader.clear();
-    *state = GameplayState::GameOver;
+        let score = score_res.0;
+        let mut record = record_res.0;
 
-    let score = score_res.0;
-    let mut record = database::get_record();
-
-    if score > record {
-        record = score;
-        database::save_record(score);
+        if score > record {
+            record = score;
+            record_res.0 = record;
+            database::save_record(score);
+        }
     }
-
-    //ui::spawn_game_over_panel(score, record, commands);
 }
 
 pub fn calculate_score(

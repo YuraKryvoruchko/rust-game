@@ -18,6 +18,7 @@ fn main() {
         .insert_resource(gameplay::AsteroidSpawTimer(Timer::from_seconds(2.0, TimerMode::Repeating)))
         .insert_resource(gameplay::LazerShootingTimer(Timer::from_seconds(0.5, TimerMode::Once)))
         .insert_resource(gameplay::Score(0))
+        .insert_resource(gameplay::ScoreRecord(database::get_record()))
         .add_event::<gameplay::AsteroidCollisionByLazerEvent>()
         .add_event::<gameplay::AsteroidDamageCollisionEvent>()
         .add_event::<gameplay::GameOverEvent>()
@@ -30,7 +31,7 @@ fn main() {
         .add_systems(Update, (ui::main_menu_action).run_if(in_state(GameState::MainMenu)))
         .add_systems(OnExit(GameState::MainMenu), ui::cleanup_menu)
 
-        .add_systems(OnEnter(GameState::InGame), ui::setup_hud)
+        .add_systems(OnEnter(GameState::InGame), (gameplay::setup, ui::setup_hud))
         .add_systems(Update, (
             gameplay::handle_input, 
             gameplay::lazer_shooting, 
@@ -46,7 +47,8 @@ fn main() {
             gameplay::destroy_system,
             gameplay::calculate_score,
             ui::update_player_health_ui,
-            ui::update_score_ui
+            ui::update_score_ui,
+            ui::handle_game_over
         ).run_if(in_state(GameState::InGame)).chain())
         .add_systems(OnExit(GameState::InGame), ui::cleanup_hud)
 
@@ -54,8 +56,7 @@ fn main() {
 }
 
 fn startup(
-    mut commands: Commands, 
-    asset_server: Res<AssetServer>
+    mut commands: Commands
 ) {
     commands.spawn(Camera2d);
 }

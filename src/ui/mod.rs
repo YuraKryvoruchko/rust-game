@@ -91,7 +91,19 @@ pub fn update_score_ui(
     }
 }
 
-pub fn spawn_game_over_panel(
+pub fn handle_game_over(
+    current_score: Res<Score>,
+    record_score: Res<ScoreRecord>,
+    commands: Commands,
+    mut event_reader: EventReader<GameOverEvent>
+) {
+    if !event_reader.is_empty() {
+        event_reader.clear();
+        spawn_game_over_panel(current_score.0, record_score.0, commands)
+    }
+}
+
+fn spawn_game_over_panel(
     current_score: i32,
     record_score: i32,
     mut commands: Commands
