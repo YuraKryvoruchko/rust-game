@@ -55,6 +55,8 @@ pub struct Destroy;
 
 #[derive(Component)]
 pub struct DespawnOnRestart;
+#[derive(Component)]
+pub struct DespawnOnExit;
 
 #[derive(Resource)]
 pub struct AsteroidSpawTimer(pub Timer);
@@ -98,8 +100,36 @@ pub fn setup(
         Direction {x: 0.0, y: 0.0},
         Health(3),
         DespawnOnRestart,
+        DespawnOnExit,
         Player
     ));
+}
+
+pub fn insert_resources(
+    mut commands: Commands
+) {
+    commands.insert_resource(GameplayState::Game);
+    commands.insert_resource(AsteroidSpawTimer(Timer::from_seconds(2.0, TimerMode::Repeating)));
+    commands.insert_resource(LazerShootingTimer(Timer::from_seconds(0.5, TimerMode::Once)));
+    commands.insert_resource(Score(0));
+}
+
+pub fn remove_resources(
+    mut commands: Commands
+) {
+    commands.remove_resource::<GameplayState>();
+    commands.remove_resource::<AsteroidSpawTimer>();
+    commands.remove_resource::<LazerShootingTimer>();
+    commands.remove_resource::<Score>();
+}
+
+pub fn cleanup(
+    mut commands: Commands,
+    despawn_entities: Query<Entity, With<DespawnOnExit>>
+) {
+    for entity in despawn_entities {
+        commands.entity(entity).despawn();
+    }
 }
 
 pub fn handle_input(
@@ -138,7 +168,6 @@ pub fn lazer_shooting(
     asset_server: Res<AssetServer>, 
     mut commands: Commands 
 ) {
-
     if !timer.0.tick(time.delta()).finished() {
         return;
     }
@@ -151,6 +180,7 @@ pub fn lazer_shooting(
                 Speed(LAZER_SPEED),
                 Direction {x: 0.0, y: 1.0},
                 DespawnOnRestart,
+                DespawnOnExit,
                 Lazer
             ));
             commands.spawn((AudioPlayer(sound.clone()), PlaybackSettings::DESPAWN));
@@ -172,6 +202,7 @@ pub fn spawn_asteroid(
             Speed(ASTEROID_MOVE_SPEED),
             Direction {x: 0.0, y: -1.0},
             DespawnOnRestart,
+            DespawnOnExit,
             Asteroid
         ));
     }

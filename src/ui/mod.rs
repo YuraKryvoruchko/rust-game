@@ -82,7 +82,8 @@ pub fn game_over_panel_action(
         (&Interaction, &GameOverPanelButtonAction),
         (Changed<Interaction>, With<Button>)
     >,
-    mut game_over_writer: EventWriter<RestartEvent>
+    mut game_over_writer: EventWriter<RestartEvent>,
+    mut game_state: ResMut<NextState<GameState>>
 ) {
     for (interaction, action) in interaction_query {
         if *interaction == Interaction::Pressed {
@@ -90,7 +91,9 @@ pub fn game_over_panel_action(
                 GameOverPanelButtonAction::Restart => {
                     game_over_writer.write_default();
                 }
-                GameOverPanelButtonAction::ExitToMenu => ()
+                GameOverPanelButtonAction::ExitToMenu => {
+                    game_state.set(GameState::MainMenu);
+                }
             }
         }
     }
@@ -148,6 +151,7 @@ fn spawn_game_over_panel(
         BackgroundColor(Color::srgb(0.3, 0.3, 0.3)),
         Visibility::Visible,
         DespawnOnRestart,
+        DespawnOnExit,
         GameOverPanel
     ))
     .with_children(|parent| {

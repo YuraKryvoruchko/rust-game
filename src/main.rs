@@ -14,10 +14,6 @@ pub enum GameState {
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
-        .insert_resource(gameplay::GameplayState::Game)
-        .insert_resource(gameplay::AsteroidSpawTimer(Timer::from_seconds(2.0, TimerMode::Repeating)))
-        .insert_resource(gameplay::LazerShootingTimer(Timer::from_seconds(0.5, TimerMode::Once)))
-        .insert_resource(gameplay::Score(0))
         .insert_resource(gameplay::ScoreRecord(database::get_record()))
         .add_event::<gameplay::AsteroidCollisionByLazerEvent>()
         .add_event::<gameplay::AsteroidDamageCollisionEvent>()
@@ -32,7 +28,7 @@ fn main() {
         .add_systems(Update, (ui::main_menu_action).run_if(in_state(GameState::MainMenu)))
         .add_systems(OnExit(GameState::MainMenu), ui::cleanup_menu)
 
-        .add_systems(OnEnter(GameState::InGame), (gameplay::setup, ui::setup_hud))
+        .add_systems(OnEnter(GameState::InGame), (gameplay::insert_resources, gameplay::setup, ui::setup_hud))
         .add_systems(Update, (
             gameplay::handle_input, 
             gameplay::lazer_shooting, 
@@ -53,7 +49,7 @@ fn main() {
             ui::game_over_panel_action,
             gameplay::restart_system
         ).run_if(in_state(GameState::InGame)).chain())
-        .add_systems(OnExit(GameState::InGame), ui::cleanup_hud)
+        .add_systems(OnExit(GameState::InGame), (gameplay::cleanup, gameplay::remove_resources, ui::cleanup_hud))
 
         .run();
 }
