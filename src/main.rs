@@ -5,7 +5,7 @@ mod ui;
 mod database;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, Default, States)]
-enum GameState {
+pub enum GameState {
     #[default]
     MainMenu,
     InGame,
@@ -22,6 +22,7 @@ fn main() {
         .add_event::<gameplay::AsteroidCollisionByLazerEvent>()
         .add_event::<gameplay::AsteroidDamageCollisionEvent>()
         .add_event::<gameplay::GameOverEvent>()
+        .add_event::<gameplay::RestartEvent>()
 
         .init_state::<GameState>()
         .add_systems(Startup, (startup, load_audio))
@@ -48,7 +49,9 @@ fn main() {
             gameplay::calculate_score,
             ui::update_player_health_ui,
             ui::update_score_ui,
-            ui::handle_game_over
+            ui::handle_game_over,
+            ui::game_over_panel_action,
+            gameplay::restart_system
         ).run_if(in_state(GameState::InGame)).chain())
         .add_systems(OnExit(GameState::InGame), ui::cleanup_hud)
 

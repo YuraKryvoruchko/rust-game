@@ -53,6 +53,9 @@ pub struct Dead;
 #[derive(Component)]
 pub struct Destroy;
 
+#[derive(Component)]
+pub struct DespawnOnRestart;
+
 #[derive(Resource)]
 pub struct AsteroidSpawTimer(pub Timer);
 
@@ -71,6 +74,8 @@ pub struct AsteroidCollisionByLazerEvent;
 pub struct AsteroidDamageCollisionEvent;
 #[derive(Event, Default)]
 pub struct GameOverEvent;
+#[derive(Event, Default)]
+pub struct RestartEvent;
 
 #[derive(Resource)]
 pub struct Score(pub i32);
@@ -92,6 +97,7 @@ pub fn setup(
         Speed(PLAYER_MOVE_SPEED),
         Direction {x: 0.0, y: 0.0},
         Health(3),
+        DespawnOnRestart,
         Player
     ));
 }
@@ -144,6 +150,7 @@ pub fn lazer_shooting(
                 Transform::from_xyz(player_transform.translation.x, player_transform.translation.y + LAZER_Y_OFFSET, LAZER_LAYER),
                 Speed(LAZER_SPEED),
                 Direction {x: 0.0, y: 1.0},
+                DespawnOnRestart,
                 Lazer
             ));
             commands.spawn((AudioPlayer(sound.clone()), PlaybackSettings::DESPAWN));
@@ -164,6 +171,7 @@ pub fn spawn_asteroid(
             Transform::from_xyz(rand::random_range(ASTEROID_SPAWN_DIAPASON.x..=ASTEROID_SPAWN_DIAPASON.y), ASTEROID_SPAWN_HEIGHT, 0.0),
             Speed(ASTEROID_MOVE_SPEED),
             Direction {x: 0.0, y: -1.0},
+            DespawnOnRestart,
             Asteroid
         ));
     }
@@ -317,5 +325,25 @@ pub fn destroy_system(
 ) {
     for entity in destroyed_entities {
         commands.entity(entity).despawn();
+    }
+}
+
+pub fn restart_system(
+    despawn_entities: Query<Entity, With<DespawnOnRestart>>,
+    asset_server: Res<AssetServer>,
+    mut score: ResMut<Score>,
+    mut state: ResMut<GameplayState>,
+    mut event_reader: EventReader<RestartEvent>,
+    mut commands: Commands
+) {
+    if !event_reader.is_empty() {
+        event_reader.clear();
+
+        for entity in despawn_entities {
+            commands.entity(entity).despawn();
+        }
+        score.0 = 0;
+        *state = GameplayState::Game;
+        setup(commands, asset_server);
     }
 }

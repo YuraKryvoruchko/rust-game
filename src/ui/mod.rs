@@ -1,8 +1,8 @@
 use bevy::prelude::*;
 use bevy_ecs::relationship::RelatedSpawnerCommands;
 
-use crate::GameState;
 use crate::gameplay::*;
+use crate::GameState;
 
 const NORMAL_BUTTON: Color = Color::srgb(0.15, 0.15, 0.15);
 const HOVERED_BUTTON: Color = Color::srgb(0.25, 0.25, 0.25);
@@ -21,6 +21,12 @@ pub struct ScoreText;
 
 #[derive(Component)]
 pub struct GameOverPanel;
+
+#[derive(Component)]
+pub enum GameOverPanelButtonAction {
+    Restart,
+    ExitToMenu,
+}
 
 pub fn setup_hud(
     mut commands: Commands
@@ -69,6 +75,25 @@ pub fn cleanup_hud(
     mut commands: Commands
 ) {
     commands.entity(hud.entity()).despawn();
+}
+
+pub fn game_over_panel_action(
+    interaction_query: Query<
+        (&Interaction, &GameOverPanelButtonAction),
+        (Changed<Interaction>, With<Button>)
+    >,
+    mut game_over_writer: EventWriter<RestartEvent>
+) {
+    for (interaction, action) in interaction_query {
+        if *interaction == Interaction::Pressed {
+            match action {
+                GameOverPanelButtonAction::Restart => {
+                    game_over_writer.write_default();
+                }
+                GameOverPanelButtonAction::ExitToMenu => ()
+            }
+        }
+    }
 }
 
 pub fn update_player_health_ui(
@@ -122,68 +147,24 @@ fn spawn_game_over_panel(
         },
         BackgroundColor(Color::srgb(0.3, 0.3, 0.3)),
         Visibility::Visible,
+        DespawnOnRestart,
         GameOverPanel
     ))
     .with_children(|parent| {
-        parent.spawn((
-            Text::new("GAME OVER!"),
-            TextFont {
-                font_size: 40.0,
-                ..Default::default()
-            }
-        ));
-        parent.spawn(
-            Text::new(format!("Score: {current_score}"))
-        );
-        parent.spawn(
-            Text::new(format!("Your record: {record_score}"))
-        );
+        create_text(parent, 40.0, "GAME OVER!");
+        create_text(parent, 20.0, &format!("Score: {current_score}"));
+        create_text(parent, 20.0, &format!("Your record: {record_score}"));
         
-        
-        // restart button
         parent.spawn((
-            Button,
             Node {
-                width: Val::Px(150.0),
-                height: Val::Px(65.0),
-                border: UiRect::all(Val::Px(5.0)),
-                align_content: AlignContent::Center,
                 align_items: AlignItems::Center,
+                justify_content: JustifyContent::SpaceEvenly,
                 ..Default::default()
             },
-            BorderColor(Color::srgb(0.0, 1.0, 0.0)),
-            BorderRadius::MAX,
-            BackgroundColor(Color::srgb(1.0, 0.0, 0.0)),
         ))
         .with_children(|parent| {
-            parent.spawn((
-                Text::new("Restart"),
-                TextColor(Color::srgb(0.9, 0.9, 0.9)),
-                TextShadow::default()
-            ));
-        });
-
-        // exit to menu button
-        parent.spawn((
-            Button,
-            Node {
-                width: Val::Px(150.0),
-                height: Val::Px(65.0),
-                border: UiRect::all(Val::Px(5.0)),
-                align_content: AlignContent::Center,
-                align_items: AlignItems::Center,
-                ..Default::default()
-            },
-            BorderColor(Color::srgb(0.0, 1.0, 0.0)),
-            BorderRadius::MAX,
-            BackgroundColor(Color::srgb(1.0, 0.0, 0.0)),
-        ))
-        .with_children(|parent| {
-            parent.spawn((
-                Text::new("Exit to menu"),
-                TextColor(Color::srgb(0.9, 0.9, 0.9)),
-                TextShadow::default()
-            ));
+            create_button(parent, 170.0, 70.0, "Restart", GameOverPanelButtonAction::Restart);
+            create_button(parent, 170.0, 70.0, "Exit", GameOverPanelButtonAction::ExitToMenu);
         });
     });
 }
