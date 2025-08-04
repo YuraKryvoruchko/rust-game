@@ -1,8 +1,11 @@
-use bevy::prelude::Component;
+use bevy::prelude::{Component, Node, Interaction};
+use bevy::ui::RelativeCursorPosition;
 
 #[derive(Component, Default)]
 pub struct SliderBar;
-#[derive(Component)]
+
+#[derive(Component, Debug, Clone, Copy, PartialEq)]
+#[require(Node, Interaction, RelativeCursorPosition)]
 pub struct Slider {
     pub min: f32,
     pub max: f32,

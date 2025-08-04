@@ -188,6 +188,10 @@ pub enum MenuButtonAction {
     Reset,
     Exit,
 }
+#[derive(Component)]
+pub enum MenuSliderAction {
+    Music
+}
 
 pub fn setup_menu(
     mut commands: Commands
@@ -211,8 +215,7 @@ pub fn setup_menu(
         create_button(parent, 300.0, 90.0, "Settings", MenuButtonAction::Settings);
         create_button(parent, 300.0, 90.0, "Reset record", MenuButtonAction::Reset);
         create_button(parent, 300.0, 90.0, "Exit", MenuButtonAction::Exit);
-        create_slider(parent);
-        create_slider(parent);
+        create_slider(parent, 150.0, 50.0, MenuSliderAction::Music);
     }); 
 }
 
@@ -244,43 +247,6 @@ pub fn main_menu_action(
             }
         }
     }
-}
-
-pub fn create_slider(
-    commands: &mut RelatedSpawnerCommands<'_, ChildOf>
-) {
-    commands.spawn((
-        Node {
-            width: Val::Px(100.0),
-            height: Val::Px(50.0),
-            ..Default::default()
-        },
-        BackgroundColor(Color::BLACK)
-    ))
-    .with_children(|parent| {
-        parent.spawn((
-            Node {
-                width: Val::Percent(100.0),
-                height: Val::Percent(100.0),
-                border: UiRect::all(Val::Px(5.0)),
-                ..Default::default()  
-            },
-            Interaction::default(),
-            RelativeCursorPosition::default(),
-            Slider { min: 10.0, max: 30.0, value: 0.0 }
-        ))
-        .with_children(|parent| {
-            parent.spawn((
-                Node {
-                    width: Val::Percent(100.0),
-                    height: Val::Percent(100.0),
-                    ..Default::default()
-                },
-                BackgroundColor(Color::WHITE),
-                SliderBar
-            ));
-        });
-    });
 }
 
 pub fn button_system(
@@ -384,4 +350,43 @@ fn create_button<A: Component>(
             TextShadow::default()
         )],
     ));
+}
+
+fn create_slider<A: Component>(
+    parent: &mut RelatedSpawnerCommands<'_, ChildOf>,
+    width: f32,
+    height: f32,
+    slider_action: A
+) {
+    parent.spawn((
+        Node {
+            width: Val::Px(width),
+            height: Val::Px(height),
+            padding: UiRect::all(Val::Px(5.0)),
+            ..Default::default()
+        },
+        BackgroundColor(Color::BLACK)
+    ))
+    .with_children(|parent| {
+        parent.spawn((
+            Node {
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                ..Default::default()
+            },
+            Slider { min: 10.0, max: 30.0, value: 0.0 },
+            slider_action
+        ))
+        .with_children(|parent| {
+            parent.spawn((
+                Node {
+                    width: Val::Percent(100.0),
+                    height: Val::Percent(100.0),
+                    ..Default::default()
+                },
+                BackgroundColor(Color::WHITE),
+                SliderBar
+            ));
+        });
+    });
 }
