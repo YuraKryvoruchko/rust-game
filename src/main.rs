@@ -11,9 +11,13 @@ pub enum GameState {
     InGame,
 }
 
+#[derive(Resource)]
+pub struct Volume(pub f32);
+
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
+        .insert_resource(Volume(100.0))
         .insert_resource(gameplay::ScoreRecord(database::get_record()))
         .add_event::<gameplay::AsteroidCollisionByLazerEvent>()
         .add_event::<gameplay::AsteroidDamageCollisionEvent>()
@@ -22,7 +26,7 @@ fn main() {
 
         .init_state::<GameState>()
         .add_systems(Startup, (startup, load_audio))
-        .add_systems(Update, ui::button_system)
+        .add_systems(Update, (ui::button_system, ui::slider_system))
         
         .add_systems(OnEnter(GameState::MainMenu), ui::setup_menu)
         .add_systems(Update, (ui::main_menu_action).run_if(in_state(GameState::MainMenu)))

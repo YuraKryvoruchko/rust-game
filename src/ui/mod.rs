@@ -1,8 +1,13 @@
 use bevy::prelude::*;
+use bevy::ui::RelativeCursorPosition;
+use bevy_ecs::observer::TriggerTargets;
 use bevy_ecs::relationship::RelatedSpawnerCommands;
 
 use crate::gameplay::*;
 use crate::GameState;
+
+mod slider;
+use slider::*;
 
 const NORMAL_BUTTON: Color = Color::srgb(0.15, 0.15, 0.15);
 const HOVERED_BUTTON: Color = Color::srgb(0.25, 0.25, 0.25);
@@ -206,6 +211,8 @@ pub fn setup_menu(
         create_button(parent, 300.0, 90.0, "Settings", MenuButtonAction::Settings);
         create_button(parent, 300.0, 90.0, "Reset record", MenuButtonAction::Reset);
         create_button(parent, 300.0, 90.0, "Exit", MenuButtonAction::Exit);
+        create_slider(parent);
+        create_slider(parent);
     }); 
 }
 
@@ -214,6 +221,66 @@ pub fn cleanup_menu(
     mut commands: Commands
 ) {
     commands.entity(menu.entity()).despawn();
+}
+
+pub fn main_menu_action(
+    interaction_query: Query<
+        (&Interaction, &MenuButtonAction),
+        (Changed<Interaction>, With<Button>),
+    >,
+    mut app_exit_events: EventWriter<AppExit>,
+    mut game_state: ResMut<NextState<GameState>>
+) {
+    for (interaction, action) in interaction_query {
+        if *interaction == Interaction::Pressed {
+            match action {
+                MenuButtonAction::Exit => {
+                    app_exit_events.write_default();
+                }
+                MenuButtonAction::Play => {
+                    game_state.set(GameState::InGame);
+                }
+                _ => ()
+            }
+        }
+    }
+}
+
+pub fn create_slider(
+    commands: &mut RelatedSpawnerCommands<'_, ChildOf>
+) {
+    commands.spawn((
+        Node {
+            width: Val::Px(100.0),
+            height: Val::Px(50.0),
+            ..Default::default()
+        },
+        BackgroundColor(Color::BLACK)
+    ))
+    .with_children(|parent| {
+        parent.spawn((
+            Node {
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                border: UiRect::all(Val::Px(5.0)),
+                ..Default::default()  
+            },
+            Interaction::default(),
+            RelativeCursorPosition::default(),
+            Slider { min: 10.0, max: 30.0, value: 0.0 }
+        ))
+        .with_children(|parent| {
+            parent.spawn((
+                Node {
+                    width: Val::Percent(100.0),
+                    height: Val::Percent(100.0),
+                    ..Default::default()
+                },
+                BackgroundColor(Color::WHITE),
+                SliderBar
+            ));
+        });
+    });
 }
 
 pub fn button_system(
@@ -238,24 +305,29 @@ pub fn button_system(
     }
 }
 
-pub fn main_menu_action(
-    interaction_query: Query<
-        (&Interaction, &MenuButtonAction),
-        (Changed<Interaction>, With<Button>),
-    >,
-    mut app_exit_events: EventWriter<AppExit>,
-    mut game_state: ResMut<NextState<GameState>>
+pub fn slider_system(
+    sliders: Query<(&RelativeCursorPosition, &Interaction, &Children, &mut Slider)>,
+    mut slider_bars: Query<&mut Node, With<SliderBar>>
 ) {
-    for (interaction, action) in interaction_query {
+    for (pos, interaction, children, mut slider) in sliders {
         if *interaction == Interaction::Pressed {
-            match action {
-                MenuButtonAction::Exit => {
-                    app_exit_events.write_default();
+            match pos.normalized {
+                Some(vec) => {
+                    slider.set_value(vec.x);
+                },
+                None => ()
+            }
+
+            for child in children.entities() {
+                let node = slider_bars.get_mut(child);
+                match node {
+                    Result::Err(err) => {
+                        println!("Warning: {}", err);
+                    }
+                    Result::Ok(mut node) => {
+                        node.width = Val::Percent(slider.value * 100.0);
+                    }
                 }
-                MenuButtonAction::Play => {
-                    game_state.set(GameState::InGame);
-                }
-                _ => ()
             }
         }
     }
