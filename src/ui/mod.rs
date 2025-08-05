@@ -190,9 +190,10 @@ pub struct VolumeText;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, Default, States)]
 pub enum MenuState {
-    #[default]
     MainMenu,
     Settings,
+    #[default]
+    Disabled
 }
 
 #[derive(Component)]
@@ -316,6 +317,7 @@ pub fn menu_button_action(
                     app_exit_events.write_default();
                 }
                 MenuButtonAction::Play => {
+                    menu_state.set(MenuState::Disabled);
                     game_state.set(GameState::InGame);
                 }
                 MenuButtonAction::Settings => {
