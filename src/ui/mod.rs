@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use bevy::prelude::*;
 use bevy::ui::RelativeCursorPosition;
 use bevy_ecs::observer::TriggerTargets;
@@ -5,6 +7,7 @@ use bevy_ecs::relationship::RelatedSpawnerCommands;
 
 use crate::gameplay::*;
 use crate::GameState;
+use crate::Volume;
 
 mod slider;
 use slider::*;
@@ -180,12 +183,24 @@ fn spawn_game_over_panel(
 
 #[derive(Component)]
 pub struct MainMenu;
+#[derive(Component)]
+pub struct SettingsMenu;
+#[derive(Component)]
+pub struct VolumeText;
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, Default, States)]
+pub enum MenuState {
+    #[default]
+    MainMenu,
+    Settings,
+}
 
 #[derive(Component)]
 pub enum MenuButtonAction {
     Play,
     Settings,
     Reset,
+    ExitToMainMenu,
     Exit,
 }
 #[derive(Component)]
@@ -194,6 +209,12 @@ pub enum MenuSliderAction {
 }
 
 pub fn setup_menu(
+    mut menu_state: ResMut<NextState<MenuState>>
+) {
+    menu_state.set(MenuState::MainMenu);
+}
+
+pub fn setup_main_menu(
     mut commands: Commands
 ) {
     commands.spawn((
@@ -215,24 +236,78 @@ pub fn setup_menu(
         create_button(parent, 300.0, 90.0, "Settings", MenuButtonAction::Settings);
         create_button(parent, 300.0, 90.0, "Reset record", MenuButtonAction::Reset);
         create_button(parent, 300.0, 90.0, "Exit", MenuButtonAction::Exit);
-        create_slider(parent, 150.0, 50.0, MenuSliderAction::Music);
     }); 
 }
 
-pub fn cleanup_menu(
+pub fn cleanup_main_menu(
     menu: Single<Entity, With<MainMenu>>,
     mut commands: Commands
 ) {
     commands.entity(menu.entity()).despawn();
 }
 
-pub fn main_menu_action(
+pub fn setup_settings_menu(
+    volume: Res<Volume>,
+    mut commands: Commands
+) {
+    commands.spawn((
+        Node {
+            width: Val::Percent(100.0),
+            height: Val::Percent(100.0),
+            flex_direction: FlexDirection::Column,
+            align_items: AlignItems::Center,
+            justify_content: JustifyContent::Center,
+            ..Default::default()
+        },
+        BackgroundColor(Color::srgb(0.3, 0.3, 0.3)),
+        Visibility::Visible,
+        SettingsMenu
+    ))
+    .with_children(|parent| {
+        create_text(parent, 50.0, "Settings");
+        parent.spawn(
+            Node {
+                width: Val::Percent(25.0),
+                ..Default::default()
+            })
+            .with_children(|parent| {
+                create_text(parent, 25.0, "Volume: ");
+                create_slider(parent, 250.0, 50.0, 0.0, 100.0, volume.0, MenuSliderAction::Music);
+                parent.spawn((
+                    Node {
+                        width: Val::Px(30.0),
+                        margin: DEFAULT_MARGIN,
+                        ..Default::default()
+                    },
+                    Text::default(),
+                    TextFont {
+                        font_size: 25.0,
+                        ..Default::default()
+                    }
+                )).with_child((
+                    TextSpan::default(),
+                    VolumeText
+                ));
+            });
+        create_button(parent, 300.0, 90.0, "Exit", MenuButtonAction::ExitToMainMenu);
+    });
+}
+
+pub fn cleanup_settings_menu(
+    settings_menu: Single<Entity, With<SettingsMenu>>,
+    mut commands: Commands
+) {
+    commands.entity(settings_menu.entity()).despawn();
+}
+
+pub fn menu_button_action(
     interaction_query: Query<
         (&Interaction, &MenuButtonAction),
         (Changed<Interaction>, With<Button>),
     >,
     mut app_exit_events: EventWriter<AppExit>,
-    mut game_state: ResMut<NextState<GameState>>
+    mut game_state: ResMut<NextState<GameState>>,
+    mut menu_state: ResMut<NextState<MenuState>>
 ) {
     for (interaction, action) in interaction_query {
         if *interaction == Interaction::Pressed {
@@ -243,9 +318,43 @@ pub fn main_menu_action(
                 MenuButtonAction::Play => {
                     game_state.set(GameState::InGame);
                 }
+                MenuButtonAction::Settings => {
+                    menu_state.set(MenuState::Settings);
+                }
+                MenuButtonAction::ExitToMainMenu => {
+                    menu_state.set(MenuState::MainMenu);
+                }
                 _ => ()
             }
         }
+    }
+}
+
+pub fn menu_slider_action(
+    interaction_query: Query<(&Interaction, &Slider, &MenuSliderAction)>,
+    mut volume: ResMut<Volume>
+) {
+    for (interaction, slider, action) in interaction_query {
+        if *interaction == Interaction::Pressed {
+            match action {
+                MenuSliderAction::Music => {
+                    volume.0 = slider.get_absolute_value();
+                }
+            }
+        }
+    }
+}
+
+pub fn resource_value_text<T, R> (
+    text_query: Query<&mut TextSpan, With<T>>,
+    value: Res<R>
+) where 
+    T: Component,
+    R: Resource + Display
+{
+    let value = value.into_inner().to_string();
+    for mut text in text_query {
+        **text = format!("{value}");
     }
 }
 
@@ -301,7 +410,7 @@ pub fn slider_system(
 
 fn create_text(
     parent: &mut RelatedSpawnerCommands<'_, ChildOf>, 
-    size: f32, 
+    size: f32,
     text: &str
 ) {
     parent.spawn((
@@ -356,6 +465,9 @@ fn create_slider<A: Component>(
     parent: &mut RelatedSpawnerCommands<'_, ChildOf>,
     width: f32,
     height: f32,
+    min: f32,
+    max: f32,
+    value: f32,
     slider_action: A
 ) {
     parent.spawn((
@@ -368,19 +480,20 @@ fn create_slider<A: Component>(
         BackgroundColor(Color::BLACK)
     ))
     .with_children(|parent| {
+        let interpolated_value = (value - min) / (max - min);
         parent.spawn((
             Node {
                 width: Val::Percent(100.0),
                 height: Val::Percent(100.0),
                 ..Default::default()
             },
-            Slider { min: 10.0, max: 30.0, value: 0.0 },
+            Slider { min: min, max: max, value: interpolated_value },
             slider_action
         ))
         .with_children(|parent| {
             parent.spawn((
                 Node {
-                    width: Val::Percent(100.0),
+                    width: Val::Percent(interpolated_value * 100.0),
                     height: Val::Percent(100.0),
                     ..Default::default()
                 },
