@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy::render::camera::ScalingMode;
 use core::fmt::Display;
 
 mod ui;
@@ -80,7 +81,11 @@ fn main() {
 fn startup(
     mut commands: Commands
 ) {
-    commands.spawn(Camera2d);
+    let projection = Projection::Orthographic(OrthographicProjection {
+        scaling_mode: ScalingMode::FixedVertical { viewport_height: 1080.0 },
+        ..OrthographicProjection::default_2d()
+    });
+    commands.spawn((projection, Camera2d));
 }
 
 fn load_audio(
