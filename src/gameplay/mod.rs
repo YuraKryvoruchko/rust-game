@@ -1,3 +1,5 @@
+use core::fmt;
+
 use bevy::{math::bounding::{Aabb2d, BoundingCircle, IntersectsVolume}, prelude::*};
 
 use crate::database;
@@ -81,8 +83,16 @@ pub struct RestartEvent;
 
 #[derive(Resource)]
 pub struct Score(pub i32);
+
 #[derive(Resource)]
 pub struct ScoreRecord(pub i32);
+
+impl fmt::Display for ScoreRecord {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 #[derive(Resource, PartialEq)]
 pub enum GameplayState {
     Game,

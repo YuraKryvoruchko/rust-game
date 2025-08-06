@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use core::fmt::Display;
 
 mod ui;
-use crate::ui::{MenuState, VolumeText};
+use crate::{gameplay::ScoreRecord, ui::{MenuState, ScoreRecordText, VolumeText}};
 
 mod gameplay;
 mod database;
@@ -43,7 +43,12 @@ fn main() {
         .add_systems(OnExit(MenuState::MainMenu), ui::cleanup_main_menu)
         .add_systems(OnEnter(MenuState::Settings), ui::setup_settings_menu)
         .add_systems(OnExit(MenuState::Settings), ui::cleanup_settings_menu)
-        .add_systems(Update, (ui::menu_button_action, ui::menu_slider_action, ui::resource_value_text::<VolumeText, Volume>).run_if(in_state(GameState::MainMenu)))
+        .add_systems(Update, (
+            ui::menu_button_action, 
+            ui::menu_slider_action, 
+            ui::resource_value_text::<VolumeText, Volume>,
+            ui::resource_value_text::<ScoreRecordText, ScoreRecord>
+        ).run_if(in_state(GameState::MainMenu)))
         .add_systems(OnExit(GameState::MainMenu), ui::cleanup_main_menu)
 
         .add_systems(OnEnter(GameState::InGame), (gameplay::insert_resources, gameplay::setup, ui::setup_hud))

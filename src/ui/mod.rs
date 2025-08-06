@@ -5,6 +5,7 @@ use bevy::ui::RelativeCursorPosition;
 use bevy_ecs::observer::TriggerTargets;
 use bevy_ecs::relationship::RelatedSpawnerCommands;
 
+use crate::database;
 use crate::gameplay::*;
 use crate::GameState;
 use crate::Volume;
@@ -26,6 +27,9 @@ pub struct HealthText;
 
 #[derive(Component)]
 pub struct ScoreText;
+
+#[derive(Component)]
+pub struct ScoreRecordText;
 
 #[derive(Component)]
 pub struct GameOverPanel;
@@ -234,6 +238,21 @@ pub fn setup_main_menu(
     .with_children(|parent| {
         create_text(parent, 50.0, "Rust-Shooter");
         create_button(parent, 300.0, 90.0, "Play", MenuButtonAction::Play);
+        parent.spawn((
+            Node {
+                width: Val::Px(300.0),
+                margin: UiRect { bottom: Val::Px(15.0), ..DEFAULT_MARGIN },
+                ..Default::default()
+            },
+            Text::new("Your record: "),
+            TextFont {
+                font_size: 18.0,
+                ..Default::default()
+            }
+            )).with_child((
+                TextSpan::default(),
+                ScoreRecordText
+            ));
         create_button(parent, 300.0, 90.0, "Settings", MenuButtonAction::Settings);
         create_button(parent, 300.0, 90.0, "Reset record", MenuButtonAction::Reset);
         create_button(parent, 300.0, 90.0, "Exit", MenuButtonAction::Exit);
@@ -308,7 +327,8 @@ pub fn menu_button_action(
     >,
     mut app_exit_events: EventWriter<AppExit>,
     mut game_state: ResMut<NextState<GameState>>,
-    mut menu_state: ResMut<NextState<MenuState>>
+    mut menu_state: ResMut<NextState<MenuState>>,
+    mut record: ResMut<ScoreRecord>
 ) {
     for (interaction, action) in interaction_query {
         if *interaction == Interaction::Pressed {
@@ -323,10 +343,13 @@ pub fn menu_button_action(
                 MenuButtonAction::Settings => {
                     menu_state.set(MenuState::Settings);
                 }
+                MenuButtonAction::Reset => {
+                    record.0 = 0;
+                    database::save_record(0);
+                }
                 MenuButtonAction::ExitToMainMenu => {
                     menu_state.set(MenuState::MainMenu);
                 }
-                _ => ()
             }
         }
     }
