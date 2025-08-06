@@ -103,6 +103,23 @@ pub fn setup(
     mut commands: Commands,
     asset_server: Res<AssetServer>
 ) {
+    let background_handle = asset_server.load("sprites/darkPurple.png");
+    let slicer = TextureSlicer {
+        border: BorderRect::all(32.0),
+        center_scale_mode: SliceScaleMode::Tile { stretch_value: 1.0 },
+        sides_scale_mode: SliceScaleMode::Tile { stretch_value: 1.0 },
+        max_corner_scale: 1.0,
+    };
+    commands.spawn((
+        Sprite {
+            image: background_handle.clone(),
+            image_mode: SpriteImageMode::Sliced(slicer),
+            custom_size: Option::Some(Vec2::new(2000.0, 2000.0)), 
+            ..default()
+        },
+        Transform::from_xyz(0.0, 0.0, -10.0),
+    ));
+
     commands.spawn((
         Sprite::from_image(asset_server.load(PLAYER_SPRITE_PATH)),
         Transform::from_xyz(0.0, PLAYER_SPAWN_HEIGHT, 0.0),
