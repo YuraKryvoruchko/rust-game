@@ -56,10 +56,10 @@ The upper left corner of the screen displays the amount of health of the player.
 2. - [x] Asteroid movement
 3. - [x] Asteroid spawning
 4. - [x] Shooting
-5. - [ ] Collision
-6. - [ ] Health system
+5. - [x] Collision
+6. - [x] Health system
 7. - [x] Score counting
-8. - [ ] Saving of best result
+8. - [x] Saving of best result
 
 ## 4.1. Key binding
 | Action     |  Key  |

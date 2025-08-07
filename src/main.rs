@@ -71,6 +71,7 @@ fn main() {
             ui::update_score_ui,
             ui::handle_game_over,
             ui::game_over_panel_action,
+            ui::update_ui_padding,
             gameplay::restart_system
         ).run_if(in_state(GameState::InGame)).chain())
         .add_systems(OnExit(GameState::InGame), (gameplay::cleanup, gameplay::remove_resources, ui::cleanup_hud))

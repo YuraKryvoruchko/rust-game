@@ -4,6 +4,7 @@ use bevy::prelude::*;
 use bevy::ui::RelativeCursorPosition;
 use bevy_ecs::observer::TriggerTargets;
 use bevy_ecs::relationship::RelatedSpawnerCommands;
+use bevy::render::camera::ScalingMode;
 
 use crate::database;
 use crate::gameplay::*;
@@ -46,13 +47,25 @@ pub fn setup_hud(
     commands.spawn((
         Hud,
         Node {
+            display: bevy::ui::Display::Grid,
             width: Val::Percent(100.0),
             height: Val::Percent(100.0),
+            grid_auto_columns: vec![GridTrack::default(), GridTrack::flex(1.0), GridTrack::default()],
             ..Default::default()
         },
     ))
-    .with_children(|parent| {
+    .with_children(|parent| {        
         parent.spawn((
+            Node {
+                height: Val::Percent(100.0),
+                grid_column: GridPlacement::start(1),
+                ..Default::default()
+            },
+            BackgroundColor(Color::BLACK),
+            HudPart
+        ))
+        .with_children(|parent| {
+            parent.spawn((
             Text::new("Health: "),
             Node {
                 position_type: PositionType::Absolute,
@@ -65,21 +78,65 @@ pub fn setup_hud(
             TextSpan::default(),
             HealthText
         ));
+        });
 
         parent.spawn((
-            Text::new("Score: "),
             Node {
-                position_type: PositionType::Absolute,
-                right: Val::Px(5.0),
-                top: Val::Px(5.0),
-                ..default()
+                height: Val::Percent(100.0),
+                grid_column: GridPlacement::start(3),
+                ..Default::default()
             },
+            BackgroundColor(Color::BLACK),
+            HudPart
         ))
-        .with_child((
-            TextSpan::default(),
-            ScoreText
-        ));
+        .with_children(|parent| {
+            parent.spawn((
+                Text::new("Score: "),
+                Node {
+                    position_type: PositionType::Absolute,
+                    right: Val::Px(5.0),
+                    top: Val::Px(5.0),
+                    ..default()
+                },
+            ))
+            .with_child((
+                TextSpan::default(),
+                ScoreText
+            ));
+        });
     });
+}
+
+#[derive(Component)]
+pub struct HudPart;
+
+pub fn update_ui_padding(
+    window: Single<&Window>,
+    projection: Single<&Projection, With<Camera2d>>,
+    nodes: Query<&mut Node, With<HudPart>>
+) {
+    match *projection {
+        Projection::Orthographic(ort) => {
+            let window_width = window.size().x;
+            let window_height = window.size().y;
+            let projection_fixed_height: f32 = match ort.scaling_mode {
+                ScalingMode::FixedVertical { viewport_height} => {
+                    viewport_height
+                }
+                _ => -1.0,
+            };
+
+            let current_scale = window_height / projection_fixed_height;
+            for mut node in nodes {
+                let node_width = (window_width - 499.0 * current_scale) / 2.0;
+                node.width = Val::Px(node_width);
+                println!("Width: {}", match node.width { Val::Px(size) => { size }, _ => -1.0 });
+            }
+        }
+        _ => {
+            panic!("sdfsdf");
+        }
+    }
 }
 
 pub fn cleanup_hud(
