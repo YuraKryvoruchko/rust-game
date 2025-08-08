@@ -27,6 +27,8 @@ const ASTEROID_ROTATE_SPEED: f32 = 0.25;
 
 const SCORE_BY_ONE_ASTEROID: i32 = 5;
 
+const FLICK_COLOR: Color = Color::srgb(1.0, 0.0, 0.0);
+
 #[derive(Component)]
 pub struct Direction {
     pub x: f32,
@@ -64,6 +66,15 @@ pub struct DespawnOnExit;
 
 #[derive(Component)]
 pub struct Rotatable;
+
+#[derive(Component)]
+pub struct Flickerable {
+    pub flick_number: i32,
+    pub delay: f32,
+    pub flick_delay: f32,
+    pub current_time: f32,
+    pub is_flicked: bool
+}
 
 #[derive(Resource)]
 pub struct AsteroidSpawTimer(pub Timer);
@@ -339,6 +350,13 @@ pub fn take_damage(
     }
 }
 
+pub fn handle_player_damage(
+    player: Single<Entity, (With<Player>, With<Damage>, Without<Flickerable>)>,
+    mut commands: Commands
+) {
+    commands.entity(player.entity()).insert(Flickerable {flick_number: 3, delay: 0.2, flick_delay: 0.2, is_flicked: false, current_time: 0.0 });
+}
+
 pub fn handle_player_dead(
     mut game_state: ResMut<GameplayState>,
     mut writer: EventWriter<GameOverEvent>,
@@ -421,5 +439,29 @@ pub fn rotate_around(
 ) {
     for mut transform in transforms {
         transform.rotate_z(ASTEROID_ROTATE_SPEED * TAU * timer.delta_secs());
+    }
+}
+
+pub fn flick_sprites(
+    flickers: Query<(&mut Flickerable, &mut Sprite, Entity)>,
+    timer: Res<Time>,
+    mut commands: Commands
+) {
+    for (mut flicker, mut sprite, entity) in flickers {
+        if flicker.is_flicked && flicker.flick_delay <= flicker.current_time {
+            sprite.color = FLICK_COLOR;
+            flicker.is_flicked = false;
+            if flicker.flick_number == 0 {
+                commands.entity(entity).remove::<Flickerable>();
+            }
+        }
+        else if !flicker.is_flicked && flicker.delay <= flicker.current_time {
+            flicker.flick_number -= 1;
+            sprite.color = FLICK_COLOR;
+            flicker.is_flicked = true;
+        }
+        else {
+            flicker.current_time += timer.delta_secs()
+        }
     }
 }
