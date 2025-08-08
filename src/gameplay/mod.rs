@@ -1,4 +1,5 @@
 use core::fmt;
+use std::f32::consts::TAU;
 
 use bevy::{math::bounding::{Aabb2d, BoundingCircle, IntersectsVolume}, prelude::*};
 
@@ -22,6 +23,7 @@ const ASTEROID_SPAWN_HEIGHT: f32 = 550.0;
 const ASTEROID_SPAWN_DIAPASON: Vec2 = Vec2::new(-200.0, 200.0);
 const ASTEROID_DIAMETER: f32 = 82.0;
 const ASTEROID_DAMAGE: i32 = 1;
+const ASTEROID_ROTATE_SPEED: f32 = 0.25;
 
 const SCORE_BY_ONE_ASTEROID: i32 = 5;
 
@@ -59,6 +61,9 @@ pub struct Destroy;
 pub struct DespawnOnRestart;
 #[derive(Component)]
 pub struct DespawnOnExit;
+
+#[derive(Component)]
+pub struct Rotatable;
 
 #[derive(Resource)]
 pub struct AsteroidSpawTimer(pub Timer);
@@ -223,13 +228,17 @@ pub fn spawn_asteroid(
     asset_server: Res<AssetServer>
 ) {
     if timer.0.tick(time.delta()).just_finished() {
+        let transform = Transform::from_xyz(rand::random_range(ASTEROID_SPAWN_DIAPASON.x..=ASTEROID_SPAWN_DIAPASON.y), ASTEROID_SPAWN_HEIGHT, 0.0);
+        let transform = transform.with_rotation(Quat::from_rotation_z(rand::random_range(0.0..=360.0)));
+
         commands.spawn((
             Sprite::from_image(asset_server.load(ASTEROID_SPRITE_PATH)),
-            Transform::from_xyz(rand::random_range(ASTEROID_SPAWN_DIAPASON.x..=ASTEROID_SPAWN_DIAPASON.y), ASTEROID_SPAWN_HEIGHT, 0.0),
+            transform,
             Speed(ASTEROID_MOVE_SPEED),
             Direction {x: 0.0, y: -1.0},
             DespawnOnRestart,
             DespawnOnExit,
+            Rotatable,
             Asteroid
         ));
     }
@@ -403,5 +412,14 @@ pub fn restart_system(
         score.0 = 0;
         *state = GameplayState::Game;
         setup(commands, asset_server);
+    }
+}
+
+pub fn rotate_around(
+    transforms: Query<&mut Transform, With<Rotatable>>,
+    timer: Res<Time>
+) {
+    for mut transform in transforms {
+        transform.rotate_z(ASTEROID_ROTATE_SPEED * TAU * timer.delta_secs());
     }
 }

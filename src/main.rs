@@ -67,6 +67,7 @@ fn main() {
             gameplay::handle_game_over_event,
             gameplay::destroy_system,
             gameplay::calculate_score,
+            gameplay::rotate_around,
             ui::update_player_health_ui,
             ui::update_score_ui,
             ui::handle_game_over,
