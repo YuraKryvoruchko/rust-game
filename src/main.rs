@@ -62,20 +62,23 @@ fn main() {
             gameplay::check_player_collision, 
             gameplay::check_botton_wall_collsion,
             gameplay::handle_asteroid_damage_collision,
-            gameplay::take_damage,
             gameplay::handle_player_damage,
+            gameplay::take_damage,
             gameplay::handle_player_dead,
             gameplay::handle_game_over_event,
             gameplay::destroy_system,
             gameplay::calculate_score,
             gameplay::rotate_around,
             gameplay::flick_sprites,
+
+            gameplay::restart_system
+        ).run_if(in_state(GameState::InGame)).chain())
+        .add_systems(Update, (
             ui::update_player_health_ui,
             ui::update_score_ui,
             ui::handle_game_over,
             ui::game_over_panel_action,
             ui::update_ui_padding,
-            gameplay::restart_system
         ).run_if(in_state(GameState::InGame)).chain())
         .add_systems(OnExit(GameState::InGame), (gameplay::cleanup, gameplay::remove_resources, ui::cleanup_hud))
 

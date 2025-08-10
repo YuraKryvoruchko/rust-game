@@ -130,7 +130,6 @@ pub fn update_ui_padding(
             for mut node in nodes {
                 let node_width = (window_width - 499.0 * current_scale) / 2.0;
                 node.width = Val::Px(node_width);
-                println!("Width: {}", match node.width { Val::Px(size) => { size }, _ => -1.0 });
             }
         }
         _ => {

@@ -76,6 +76,12 @@ pub struct Flickerable {
     pub is_flicked: bool
 }
 
+impl Default for Flickerable {
+    fn default() -> Self {
+        Flickerable { flick_number: 3, delay: 0.1, flick_delay: 0.1, current_time: 0.0, is_flicked: true }
+    }
+}
+
 #[derive(Resource)]
 pub struct AsteroidSpawTimer(pub Timer);
 
@@ -354,7 +360,7 @@ pub fn handle_player_damage(
     player: Single<Entity, (With<Player>, With<Damage>, Without<Flickerable>)>,
     mut commands: Commands
 ) {
-    commands.entity(player.entity()).insert(Flickerable {flick_number: 3, delay: 0.2, flick_delay: 0.2, is_flicked: false, current_time: 0.0 });
+    commands.entity(player.entity()).insert_if_new(Flickerable::default());
 }
 
 pub fn handle_player_dead(
@@ -449,19 +455,24 @@ pub fn flick_sprites(
 ) {
     for (mut flicker, mut sprite, entity) in flickers {
         if flicker.is_flicked && flicker.flick_delay <= flicker.current_time {
-            sprite.color = FLICK_COLOR;
             flicker.is_flicked = false;
+            flicker.current_time = 0.0;
             if flicker.flick_number == 0 {
                 commands.entity(entity).remove::<Flickerable>();
             }
         }
         else if !flicker.is_flicked && flicker.delay <= flicker.current_time {
             flicker.flick_number -= 1;
-            sprite.color = FLICK_COLOR;
             flicker.is_flicked = true;
+            flicker.current_time = 0.0;
         }
         else {
-            flicker.current_time += timer.delta_secs()
+            flicker.current_time += timer.delta_secs();
         }
+        
+        sprite.color = match flicker.is_flicked {
+            true => FLICK_COLOR,
+            false => Color::WHITE
+        };
     }
 }
