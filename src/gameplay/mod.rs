@@ -115,13 +115,21 @@ impl fmt::Display for ScoreRecord {
     }
 }
 
-#[derive(Resource, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, Default, States)]
 pub enum GameplayState {
+    #[default]
+    None,
     Game,
     GameOver
 }
 
 pub fn setup(
+    mut gameplay_state: ResMut<NextState<GameplayState>>
+) {
+    gameplay_state.set(GameplayState::Game);
+}
+
+pub fn setup_gameplay(
     mut commands: Commands,
     asset_server: Res<AssetServer>
 ) {
@@ -157,7 +165,6 @@ pub fn setup(
 pub fn insert_resources(
     mut commands: Commands
 ) {
-    commands.insert_resource(GameplayState::Game);
     commands.insert_resource(AsteroidSpawTimer(Timer::from_seconds(2.0, TimerMode::Repeating)));
     commands.insert_resource(LazerShootingTimer(Timer::from_seconds(0.5, TimerMode::Once)));
     commands.insert_resource(Score(0));
@@ -166,7 +173,6 @@ pub fn insert_resources(
 pub fn remove_resources(
     mut commands: Commands
 ) {
-    commands.remove_resource::<GameplayState>();
     commands.remove_resource::<AsteroidSpawTimer>();
     commands.remove_resource::<LazerShootingTimer>();
     commands.remove_resource::<Score>();
@@ -174,11 +180,13 @@ pub fn remove_resources(
 
 pub fn cleanup(
     mut commands: Commands,
-    despawn_entities: Query<Entity, With<DespawnOnExit>>
+    despawn_entities: Query<Entity, With<DespawnOnExit>>,
+    mut gameplay_state: ResMut<NextState<GameplayState>>
 ) {
     for entity in despawn_entities {
         commands.entity(entity).despawn();
     }
+    gameplay_state.set(GameplayState::None);
 }
 
 pub fn handle_input(
@@ -364,36 +372,25 @@ pub fn handle_player_damage(
 }
 
 pub fn handle_player_dead(
-    mut game_state: ResMut<GameplayState>,
-    mut writer: EventWriter<GameOverEvent>,
+    mut gameplay_state: ResMut<NextState<GameplayState>>,
     mut player: Single<&mut Sprite, (With<Player>, With<Dead>)>
 ) {
-    if *game_state == GameplayState::GameOver { return; }
-
-    *game_state = GameplayState::GameOver;
+    gameplay_state.set(GameplayState::GameOver);
     let sprite = &mut*player;
     sprite.color = Color::srgb(1.0, 0.0, 0.0);
-    writer.write_default();
 }
 
 pub fn handle_game_over_event(
     score_res: Res<Score>,
-    mut record_res: ResMut<ScoreRecord>,
-    mut state: ResMut<GameplayState>,
-    mut event_reader: EventReader<GameOverEvent>,
+    mut record_res: ResMut<ScoreRecord>
 ) {
-    if !event_reader.is_empty() {
-        event_reader.clear();
-        *state = GameplayState::GameOver;
+    let score = score_res.0;
+    let mut record = record_res.0;
 
-        let score = score_res.0;
-        let mut record = record_res.0;
-
-        if score > record {
-            record = score;
-            record_res.0 = record;
-            database::save_record(score);
-        }
+    if score > record {
+        record = score;
+        record_res.0 = record;
+        database::save_record(score);
     }
 }
 
@@ -421,9 +418,8 @@ pub fn destroy_system(
 
 pub fn restart_system(
     despawn_entities: Query<Entity, With<DespawnOnRestart>>,
-    asset_server: Res<AssetServer>,
     mut score: ResMut<Score>,
-    mut state: ResMut<GameplayState>,
+    mut gameplay_state: ResMut<NextState<GameplayState>>,
     mut event_reader: EventReader<RestartEvent>,
     mut commands: Commands
 ) {
@@ -434,8 +430,7 @@ pub fn restart_system(
             commands.entity(entity).despawn();
         }
         score.0 = 0;
-        *state = GameplayState::Game;
-        setup(commands, asset_server);
+        gameplay_state.set(GameplayState::Game);
     }
 }
 

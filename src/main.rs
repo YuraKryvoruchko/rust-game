@@ -3,7 +3,7 @@ use bevy::render::camera::ScalingMode;
 use core::fmt::Display;
 
 mod ui;
-use crate::{gameplay::ScoreRecord, ui::{MenuState, ScoreRecordText, VolumeText}};
+use crate::{gameplay::{GameplayState, ScoreRecord}, ui::{MenuState, ScoreRecordText, VolumeText}};
 
 mod gameplay;
 mod database;
@@ -36,6 +36,8 @@ fn main() {
 
         .init_state::<GameState>()
         .init_state::<MenuState>()
+        .init_state::<GameplayState>()
+
         .add_systems(Startup, (startup, load_audio))
         .add_systems(Update, (ui::button_system, ui::slider_system))
         
@@ -53,6 +55,7 @@ fn main() {
         .add_systems(OnExit(GameState::MainMenu), ui::cleanup_main_menu)
 
         .add_systems(OnEnter(GameState::InGame), (gameplay::insert_resources, gameplay::setup, ui::setup_hud))
+        .add_systems(OnEnter(GameplayState::Game), gameplay::setup_gameplay)
         .add_systems(Update, (
             gameplay::handle_input, 
             gameplay::lazer_shooting, 
@@ -65,19 +68,19 @@ fn main() {
             gameplay::handle_player_damage,
             gameplay::take_damage,
             gameplay::handle_player_dead,
-            gameplay::handle_game_over_event,
             gameplay::destroy_system,
             gameplay::calculate_score,
             gameplay::rotate_around,
-            gameplay::flick_sprites,
-
-            gameplay::restart_system
-        ).run_if(in_state(GameState::InGame)).chain())
+            gameplay::flick_sprites
+        ).run_if(in_state(GameplayState::Game)).chain())
+        .add_systems(OnEnter(GameplayState::GameOver), (gameplay::handle_game_over_event, ui::handle_game_over))
+        .add_systems(Update, (
+            gameplay::restart_system,
+            ui::game_over_panel_action,
+        ).run_if(in_state(GameplayState::GameOver)).chain())
         .add_systems(Update, (
             ui::update_player_health_ui,
             ui::update_score_ui,
-            ui::handle_game_over,
-            ui::game_over_panel_action,
             ui::update_ui_padding,
         ).run_if(in_state(GameState::InGame)).chain())
         .add_systems(OnExit(GameState::InGame), (gameplay::cleanup, gameplay::remove_resources, ui::cleanup_hud))

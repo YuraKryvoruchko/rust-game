@@ -151,7 +151,8 @@ pub fn game_over_panel_action(
         (Changed<Interaction>, With<Button>)
     >,
     mut game_over_writer: EventWriter<RestartEvent>,
-    mut game_state: ResMut<NextState<GameState>>
+    mut game_state: ResMut<NextState<GameState>>,
+    mut gameplay_state: ResMut<NextState<GameplayState>>
 ) {
     for (interaction, action) in interaction_query {
         if *interaction == Interaction::Pressed {
@@ -160,6 +161,7 @@ pub fn game_over_panel_action(
                     game_over_writer.write_default();
                 }
                 GameOverPanelButtonAction::ExitToMenu => {
+                    gameplay_state.set(GameplayState::None);
                     game_state.set(GameState::MainMenu);
                 }
             }
@@ -190,13 +192,9 @@ pub fn update_score_ui(
 pub fn handle_game_over(
     current_score: Res<Score>,
     record_score: Res<ScoreRecord>,
-    commands: Commands,
-    mut event_reader: EventReader<GameOverEvent>
+    commands: Commands
 ) {
-    if !event_reader.is_empty() {
-        event_reader.clear();
-        spawn_game_over_panel(current_score.0, record_score.0, commands)
-    }
+    spawn_game_over_panel(current_score.0, record_score.0, commands)
 }
 
 fn spawn_game_over_panel(
