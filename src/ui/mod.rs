@@ -410,7 +410,9 @@ pub fn menu_button_action(
     mut app_exit_events: EventWriter<AppExit>,
     mut game_state: ResMut<NextState<GameState>>,
     mut menu_state: ResMut<NextState<MenuState>>,
-    mut record: ResMut<ScoreRecord>
+    mut record: ResMut<ScoreRecord>,
+    sound_volume: Res<SoundVolume>,
+    music_volume: Res<MusicVolume>
 ) {
     for (interaction, action) in interaction_query {
         if *interaction == Interaction::Pressed {
@@ -430,6 +432,8 @@ pub fn menu_button_action(
                     database::save_record(0);
                 }
                 MenuButtonAction::ExitToMainMenu => {
+                    database::save_sound_volume(sound_volume.0);
+                    database::save_music_volume(music_volume.0);
                     menu_state.set(MenuState::MainMenu);
                 }
             }

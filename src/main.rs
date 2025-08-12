@@ -20,9 +20,9 @@ pub enum GameState {
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
-        .insert_resource(audio::MusicVolume(100.0))
-        .insert_resource(audio::SoundVolume(100.0))
         .insert_resource(gameplay::ScoreRecord(database::get_record()))
+        .insert_resource(audio::SoundVolume(database::get_sound_volume()))
+        .insert_resource(audio::MusicVolume(database::get_music_volume()))
         .add_event::<gameplay::AsteroidCollisionByLazerEvent>()
         .add_event::<gameplay::AsteroidDamageCollisionEvent>()
         .add_event::<gameplay::GameOverEvent>()
