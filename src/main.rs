@@ -1,9 +1,9 @@
 use bevy::prelude::*;
 use bevy::render::camera::ScalingMode;
-use core::fmt::Display;
 
 mod ui;
-use crate::{gameplay::{GameplayState, ScoreRecord}, ui::{MenuState, ScoreRecordText, VolumeText}};
+mod audio;
+use crate::{audio::*, gameplay::{GameplayState, ScoreRecord}, ui::{MenuState, MusicVolumeText, ScoreRecordText, SoundVolumeText}};
 
 mod gameplay;
 mod database;
@@ -15,19 +15,12 @@ pub enum GameState {
     InGame,
 }
 
-#[derive(Resource)]
-pub struct Volume(pub f32);
-
-impl Display for Volume {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:.1}", self.0)
-    }
-}
 
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
-        .insert_resource(Volume(100.0))
+        .insert_resource(audio::MusicVolume(100.0))
+        .insert_resource(audio::SoundVolume(100.0))
         .insert_resource(gameplay::ScoreRecord(database::get_record()))
         .add_event::<gameplay::AsteroidCollisionByLazerEvent>()
         .add_event::<gameplay::AsteroidDamageCollisionEvent>()
@@ -39,7 +32,12 @@ fn main() {
         .init_state::<GameplayState>()
 
         .add_systems(Startup, (startup, load_audio))
-        .add_systems(Update, (ui::button_system, ui::slider_system))
+        .add_systems(Update, (
+            ui::button_system, 
+            ui::slider_system,
+            audio::volume_system::<Music, MusicVolume>.run_if(resource_changed::<MusicVolume>),
+            audio::volume_system::<Sound, SoundVolume>.run_if(resource_changed::<SoundVolume>)
+        ))
         
         .add_systems(OnEnter(GameState::MainMenu), ui::setup_menu)
         .add_systems(OnEnter(MenuState::MainMenu), ui::setup_main_menu)
@@ -49,7 +47,8 @@ fn main() {
         .add_systems(Update, (
             ui::menu_button_action, 
             ui::menu_slider_action, 
-            ui::resource_value_text::<VolumeText, Volume>,
+            ui::resource_value_text::<MusicVolumeText, MusicVolume>,
+            ui::resource_value_text::<SoundVolumeText, SoundVolume>,
             ui::resource_value_text::<ScoreRecordText, ScoreRecord>
         ).run_if(in_state(GameState::MainMenu)))
         .add_systems(OnExit(GameState::MainMenu), ui::cleanup_main_menu)

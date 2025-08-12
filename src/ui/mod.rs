@@ -9,7 +9,7 @@ use bevy::render::camera::ScalingMode;
 use crate::database;
 use crate::gameplay::*;
 use crate::GameState;
-use crate::Volume;
+use crate::audio::*;
 
 mod slider;
 use slider::*;
@@ -244,7 +244,9 @@ pub struct MainMenu;
 #[derive(Component)]
 pub struct SettingsMenu;
 #[derive(Component)]
-pub struct VolumeText;
+pub struct MusicVolumeText;
+#[derive(Component)]
+pub struct SoundVolumeText;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, Default, States)]
 pub enum MenuState {
@@ -264,7 +266,8 @@ pub enum MenuButtonAction {
 }
 #[derive(Component)]
 pub enum MenuSliderAction {
-    Music
+    Music,
+    Sound
 }
 
 pub fn setup_menu(
@@ -321,7 +324,8 @@ pub fn cleanup_main_menu(
 }
 
 pub fn setup_settings_menu(
-    volume: Res<Volume>,
+    music_volume: Res<MusicVolume>,
+    sound_volume: Res<SoundVolume>,
     mut commands: Commands
 ) {
     commands.spawn((
@@ -345,8 +349,8 @@ pub fn setup_settings_menu(
                 ..Default::default()
             })
             .with_children(|parent| {
-                create_text(parent, 25.0, "Volume: ");
-                create_slider(parent, 250.0, 50.0, 0.0, 100.0, volume.0, MenuSliderAction::Music);
+                create_text(parent, 25.0, "Music: ");
+                create_slider(parent, 250.0, 50.0, 0.0, 100.0, music_volume.0, MenuSliderAction::Music);
                 parent.spawn((
                     Node {
                         width: Val::Px(30.0),
@@ -360,7 +364,31 @@ pub fn setup_settings_menu(
                     }
                 )).with_child((
                     TextSpan::default(),
-                    VolumeText
+                    MusicVolumeText
+                ));
+            });
+        parent.spawn(
+            Node {
+                width: Val::Percent(25.0),
+                ..Default::default()
+            })
+            .with_children(|parent| {
+                create_text(parent, 25.0, "Sound: ");
+                create_slider(parent, 250.0, 50.0, 0.0, 100.0, sound_volume.0, MenuSliderAction::Sound);
+                parent.spawn((
+                    Node {
+                        width: Val::Px(30.0),
+                        margin: DEFAULT_MARGIN,
+                        ..Default::default()
+                    },
+                    Text::default(),
+                    TextFont {
+                        font_size: 25.0,
+                        ..Default::default()
+                    }
+                )).with_child((
+                    TextSpan::default(),
+                    SoundVolumeText
                 ));
             });
         create_button(parent, 300.0, 90.0, "Exit", MenuButtonAction::ExitToMainMenu);
@@ -411,13 +439,17 @@ pub fn menu_button_action(
 
 pub fn menu_slider_action(
     interaction_query: Query<(&Interaction, &Slider, &MenuSliderAction)>,
-    mut volume: ResMut<Volume>
+    mut music_volume: ResMut<MusicVolume>,
+    mut sound_volume: ResMut<SoundVolume>,
 ) {
     for (interaction, slider, action) in interaction_query {
         if *interaction == Interaction::Pressed {
             match action {
                 MenuSliderAction::Music => {
-                    volume.0 = slider.get_absolute_value();
+                    music_volume.0 = slider.get_absolute_value();
+                },
+                MenuSliderAction::Sound => {
+                    sound_volume.0 = slider.get_absolute_value();
                 }
             }
         }
