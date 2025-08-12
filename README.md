@@ -108,6 +108,7 @@ When the game ends, the result is saved if it is a record.
 # 5. Used resources
 1. [Game engine Bavy](https://bevy.org/)
 2. [Space Shooter Redux by KenneY](https://kenney.nl/assets/space-shooter-redux)
+3. [Background Music](https://freesound.org/people/Romariogrande/sounds/639495/)
 
 # 6. Results
 Work in progress.

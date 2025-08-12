@@ -1,8 +1,8 @@
 use core::fmt;
 use std::f32::consts::TAU;
 
-use bevy::{math::bounding::{Aabb2d, BoundingCircle, IntersectsVolume}, prelude::*};
-
+use bevy::{audio::Volume, math::bounding::{Aabb2d, BoundingCircle, IntersectsVolume}, prelude::*};
+use crate::audio::{Sound, SoundVolume};
 use crate::database;
 
 const PLAYER_SPRITE_PATH: &str = "sprites/playerShip1_blue.png";
@@ -222,6 +222,7 @@ pub fn lazer_shooting(
     input: Res<ButtonInput<KeyCode>>, 
     player: Query<&Transform, With<Player>>, 
     sound: Res<LazerShootingSound>,
+    sound_volume: Res<SoundVolume>,
     asset_server: Res<AssetServer>, 
     mut commands: Commands 
 ) {
@@ -240,7 +241,7 @@ pub fn lazer_shooting(
                 DespawnOnExit,
                 Lazer
             ));
-            commands.spawn((AudioPlayer(sound.clone()), PlaybackSettings::DESPAWN));
+            commands.spawn((AudioPlayer(sound.clone()), Sound, PlaybackSettings {volume: Volume::Linear(sound_volume.0 / 100.0), ..PlaybackSettings::DESPAWN }));
         }
         timer.0.reset();
     }
@@ -298,6 +299,7 @@ pub fn check_player_collision(
     mut player: Single<&mut Transform, (With<Player>, Without<Asteroid>)>,
     asteroids: Query<(Entity, &Transform), (With<Asteroid>, Without<Player>)>,
     sound: Res<DamageSound>,
+    sound_volume: Res<SoundVolume>,
     mut collision_writer: EventWriter<AsteroidDamageCollisionEvent>,
     mut commands: Commands
 ) { 
@@ -315,7 +317,7 @@ pub fn check_player_collision(
         if body_collider.intersects(&asteroid_collider) || wing_collider.intersects(&asteroid_collider) {
             collision_writer.write_default();
             commands.entity(asteroid_entity).insert(Destroy);
-            commands.spawn((AudioPlayer(sound.clone()), PlaybackSettings::DESPAWN));
+            commands.spawn((AudioPlayer(sound.clone()), Sound, PlaybackSettings {volume: Volume::Linear(sound_volume.0 / 100.0), ..PlaybackSettings::DESPAWN }));
         }
     }
 }
@@ -323,6 +325,7 @@ pub fn check_player_collision(
 pub fn check_botton_wall_collsion(
     asteroids: Query<(Entity, &Transform), (With<Asteroid>, Without<Player>)>,
     sound: Res<DamageSound>,
+    sound_volume: Res<SoundVolume>,
     mut collision_events: EventWriter<AsteroidDamageCollisionEvent>, 
     mut commands: Commands,
 ) {
@@ -330,7 +333,7 @@ pub fn check_botton_wall_collsion(
         if transform.translation.y < -ASTEROID_SPAWN_HEIGHT {
             collision_events.write(AsteroidDamageCollisionEvent);
             commands.entity(entity).insert(Destroy);
-            commands.spawn((AudioPlayer(sound.clone()), PlaybackSettings::DESPAWN));
+            commands.spawn((AudioPlayer(sound.clone()), Sound, PlaybackSettings {volume: Volume::Linear(sound_volume.0 / 100.0), ..PlaybackSettings::DESPAWN }));
         }
     }
 }

@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use bevy::render::camera::ScalingMode;
+use bevy::audio::Volume;
 
 mod ui;
 mod audio;
@@ -31,7 +32,7 @@ fn main() {
         .init_state::<MenuState>()
         .init_state::<GameplayState>()
 
-        .add_systems(Startup, (startup, load_audio))
+        .add_systems(Startup, (startup, load_audio, setup_background_music))
         .add_systems(Update, (
             ui::button_system, 
             ui::slider_system,
@@ -106,4 +107,14 @@ fn load_audio(
 
     let damage_sound = asset_server.load("audio/sfx_lose.ogg");
     commands.insert_resource(gameplay::DamageSound(damage_sound));
+}
+
+fn setup_background_music(
+    asset_server: Res<AssetServer>,
+    music_volume: Res<MusicVolume>,
+    mut commands: Commands
+) {
+    println!("setup_background_music");
+    let background_music: Handle<AudioSource> = asset_server.load("audio/639495__romariogrande__space-ambient-voyage.ogg");
+    commands.spawn((AudioPlayer(background_music.clone()), Music, PlaybackSettings {volume: Volume::Linear(music_volume.0 / 100.0), ..PlaybackSettings::LOOP }));
 }
