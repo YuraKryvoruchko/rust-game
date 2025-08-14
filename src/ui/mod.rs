@@ -345,12 +345,12 @@ pub fn setup_settings_menu(
         create_text(parent, 50.0, "Settings");
         parent.spawn(
             Node {
-                width: Val::Percent(25.0),
+                width: Val::Px(350.0),
                 ..Default::default()
             })
             .with_children(|parent| {
                 create_text(parent, 25.0, "Music: ");
-                create_slider(parent, 250.0, 50.0, 0.0, 100.0, music_volume.0, MenuSliderAction::Music);
+                create_slider(parent, 300.0, 50.0, 0.0, 100.0, music_volume.0, MenuSliderAction::Music);
                 parent.spawn((
                     Node {
                         width: Val::Px(30.0),
@@ -369,7 +369,7 @@ pub fn setup_settings_menu(
             });
         parent.spawn(
             Node {
-                width: Val::Percent(25.0),
+                width: Val::Px(350.0),
                 ..Default::default()
             })
             .with_children(|parent| {

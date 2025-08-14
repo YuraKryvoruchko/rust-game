@@ -17,8 +17,11 @@
   - [4.8. Health system](#48-health-system)
   - [4.9. Score counting](#49-score-counting)
   - [4.10. Saving of best result](#410-saving-of-best-result)
+  - [4.11. Saving of settings](#411-saving-of-settings)
 - [5. Used resources](#5-used-resources)
 - [6. Results](#6-results)
+  - [YouTube](#youtube)
+  - [Itch.io: https://zyma.itch.io/rust-shooter](#itchio-httpszymaitchiorust-shooter)
 
 # 1. About
 - Program type: game;
@@ -69,16 +72,16 @@ The upper left corner of the screen displays the amount of health of the player.
 | Shoot      | Space |
 
 ## 4.2. Game characteristic values
-| Characteristic        | Value |
-| :-------------------- | :---: |
-| Player speed          |   1   |
-| Asteroid speed        |   1   |
-| Laser speed           |   1   |
-| Amount of health      |   3   |
-| Damage of asteroid    |   1   |
-| Shooting rate         |  0.2  |
-| Asteroid spawn rate   |   3   |
-| Score by one asteroid |   5   |
+| Characteristic        | Value     |
+| :-------------------- | :-------: |
+| Player speed          |   250.0   |
+| Asteroid speed        |   350.0   |
+| Laser speed           |   600.0   |
+| Amount of health      |     3     |
+| Damage of asteroid    |     1     |
+| Shooting rate         |     0.5   |
+| Asteroid spawn rate   |     2.0   |
+| Score by one asteroid |     5     |
 
 ## 4.3. Player movement
 When player click **[Move left]** or **[Move right]** then the player moves in the corresponding direction with the speed ***[Player speed]***.
@@ -105,10 +108,16 @@ When the player destroy an asteroid by laser his get ***[Score by one asteroid]*
 ## 4.10. Saving of best result
 When the game ends, the result is saved if it is a record.
 
+## 4.11. Saving of settings
+Saving music and sound volume in the main menu.
+
 # 5. Used resources
 1. [Game engine Bavy](https://bevy.org/)
 2. [Space Shooter Redux by KenneY](https://kenney.nl/assets/space-shooter-redux)
 3. [Background Music](https://freesound.org/people/Romariogrande/sounds/639495/)
 
 # 6. Results
-Work in progress.
+## [YouTube](https://youtu.be/qLo2DXG0L9w)
+[![Watch the video](https://img.youtube.com/vi/qLo2DXG0L9w/maxresdefault.jpg)](https://youtu.be/qLo2DXG0L9w)
+
+## Itch.io: https://zyma.itch.io/rust-shooter

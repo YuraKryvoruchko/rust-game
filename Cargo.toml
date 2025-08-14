@@ -8,3 +8,8 @@ bevy = "0.16"
 bevy_ecs = "0.16"
 bevy_state = "0.16"
 rand = "0.9.1"
+
+[profile.release]
+opt-level = 3
+codegen-units = 1
+lto = "thin"
